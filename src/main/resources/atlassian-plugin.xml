@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<atlassian-plugin key="${project.groupId}.${project.artifactId}" name="${project.name}" plugins-version="2">
+    <plugin-info>
+        <description>${project.description}</description>
+        <version>${project.version}</version>
+        <vendor name="Octopus" url="https://octopusden.org"/>
+        <param name="plugin-icon">images/pluginIcon.png</param>
+        <param name="plugin-logo">images/pluginLogo.png</param>
+    </plugin-info>
+    <resource type="i18n" name="i18n" location="octopus-jira-api-plugin"/>
+
+    <!--REST -->
+    <!-- RestService is auto-discovered by the Atlassian REST plugin infrastructure -->
+    <rest name="Octopus JIRA REST API"
+          i18n-name-key="octopus-jira-rest-api.name"
+          key="octopus-jira-rest-api"
+          path="/octopus-jira-api"
+          version="1">
+        <description>Octopus JIRA REST API</description>
+    </rest>
+
+    <!-- Jira platform component imports -->
+    <component-import key="octopus-api-issueLinkManager"
+                      interface="com.atlassian.jira.issue.link.IssueLinkManager"/>
+
+    <component-import key="octopus-api-customFieldManager"
+                      interface="com.atlassian.jira.issue.CustomFieldManager"/>
+
+    <component-import key="octopus-api-searchService"
+                      interface="com.atlassian.jira.bc.issue.search.SearchService"/>
+
+    <component-import key="octopus-api-pluginSettingsFactory"
+                      interface="com.atlassian.sal.api.pluginsettings.PluginSettingsFactory"/>
+
+    <!-- Plugin beans -->
+    <component key="octopus-api-object-mapper"
+               class="com.fasterxml.jackson.databind.ObjectMapper"/>
+
+    <component key="octopus-api-settings-provider"
+               class="org.octopusden.octopus.jira.api.config.ApiSettingsProvider"/>
+
+    <component key="octopus-api-ips-service"
+               class="org.octopusden.octopus.jira.api.service.IPSService"/>
+
+    <!-- Admin UI -->
+    <web-section key="octopus_api_section" location="admin_plugins_menu" name="Octopus API" weight="200">
+        <label key="Octopus API Plugin" />
+    </web-section>
+
+    <web-item key="octopus-api-settings" name="Octopus API Plugin Settings"
+              section="admin_plugins_menu/octopus_api_section" weight="100">
+        <label key="Octopus API Settings" />
+        <link linkId="octopus-api-settings">/secure/admin/ViewApiSettings!default.jspa</link>
+    </web-item>
+
+    <webwork1 key="octopus-api-settings-actions" name="Octopus API Settings actions" class="java.lang.Object">
+        <actions>
+            <action name="org.octopusden.octopus.jira.api.ui.admin.ViewApiSettings"
+                    alias="ViewApiSettings"
+                    roles-required="admin">
+                <view name="success">/templates/ui/admin/settings-view.vm</view>
+            </action>
+        </actions>
+    </webwork1>
+
+</atlassian-plugin>

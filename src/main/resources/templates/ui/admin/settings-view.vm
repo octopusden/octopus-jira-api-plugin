@@ -1,0 +1,32 @@
+#macro( paramInput $setting )
+<label class="label" for="$setting.key">$setting.displayName</label>
+    #if($setting.type.name() == "PASSWORD")
+    <input class="text long-field" name="$setting.key" type="password" value="$settingsProvider.get($setting)"/>
+    #else
+    <input class="text long-field" name="$setting.key" type="text" value="$settingsProvider.get($setting)"/>
+    #end
+#end
+
+<html>
+<head>
+    <title>$title</title>
+    <meta name="decorator" content="jira.admin"/>
+    <meta name="admin.active.section" content="admin_plugins_menu/octopus_api_section"/>
+    <meta name="admin.active.tab" content="$tab"/>
+</head>
+<body>
+<div class="module">
+    <form class="aui" method="post">
+        #foreach ($setting in $availableSettings)
+            <div class="field-group">
+                #paramInput($setting)
+            </div>
+        #end
+        <div class="field-group">
+            <input class="aui-button" type="submit" value="Submit" name="submit">
+            <input type="hidden" name="atl_token" value=$atl_token/>
+        </div>
+    </form>
+</div>
+</body>
+</html>
