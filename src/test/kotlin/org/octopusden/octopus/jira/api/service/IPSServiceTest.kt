@@ -105,13 +105,14 @@ class IPSServiceTest {
     private fun createRequest(
         release: String? = RELEASE,
         startDate: Date? = null,
-        mandatory: Boolean = true
+        mandatory: Boolean = true,
+        system: String = "CLASSIC"
     ) = IPSRequest(
         ips = "product-1",
         ipsType = "type-A",
         release = release,
         startDate = startDate,
-        system = "CLASSIC",
+        system = system,
         mandatory = mandatory
     )
 
@@ -623,6 +624,119 @@ class IPSServiceTest {
 
         assertEquals(1, response.requirements[0].testing.size)
         assertEquals("QA-3", response.requirements[0].testing[0].key)
+    }
+
+    // ==================== L. System Filtering ====================
+
+    @Test
+    fun testGenerateExcludesDevSubtaskWhenSystemDoesNotMatch() {
+        val ipsRelease = createIssue(key = "IPS-3000")
+        val requirement = createIssue(key = "REQ-600")
+        val devSubtask = createIssue(key = "DEV-50", typeName = "IPS Req Dev", system = listOf("SERVER"))
+        stubSearchReturns(ipsRelease)
+        stubInwardLinks(ipsRelease, listOf(requirement))
+        stubSubtasks(requirement, listOf(devSubtask))
+
+        val request = createRequest()
+        val response = service.generate(request)
+
+        assertTrue(response.requirements[0].development.isEmpty())
+    }
+
+    @Test
+    fun testGenerateExcludesQaSubtaskWhenSystemDoesNotMatch() {
+        val ipsRelease = createIssue(key = "IPS-3010")
+        val requirement = createIssue(key = "REQ-610")
+        val qaSubtask = createIssue(key = "QA-10", typeName = "IPS Req QA", system = listOf("SERVER"))
+        stubSearchReturns(ipsRelease)
+        stubInwardLinks(ipsRelease, listOf(requirement))
+        stubSubtasks(requirement, listOf(qaSubtask))
+
+        val request = createRequest()
+        val response = service.generate(request)
+
+        assertTrue(response.requirements[0].testing.isEmpty())
+    }
+
+    @Test
+    fun testGenerateIncludesDevSubtaskWhenSystemMatches() {
+        val ipsRelease = createIssue(key = "IPS-3020")
+        val requirement = createIssue(key = "REQ-620")
+        val devSubtask = createIssue(key = "DEV-51", typeName = "IPS Req Dev", system = listOf("CLASSIC"))
+        stubSearchReturns(ipsRelease)
+        stubInwardLinks(ipsRelease, listOf(requirement))
+        stubSubtasks(requirement, listOf(devSubtask))
+
+        val request = createRequest()
+        val response = service.generate(request)
+
+        assertEquals(1, response.requirements[0].development.size)
+        assertEquals("DEV-51", response.requirements[0].development[0].key)
+    }
+
+    @Test
+    fun testGenerateIncludesQaSubtaskWhenSystemMatches() {
+        val ipsRelease = createIssue(key = "IPS-3030")
+        val requirement = createIssue(key = "REQ-630")
+        val qaSubtask = createIssue(key = "QA-11", typeName = "IPS Req QA", system = listOf("CLASSIC"))
+        stubSearchReturns(ipsRelease)
+        stubInwardLinks(ipsRelease, listOf(requirement))
+        stubSubtasks(requirement, listOf(qaSubtask))
+
+        val request = createRequest()
+        val response = service.generate(request)
+
+        assertEquals(1, response.requirements[0].testing.size)
+        assertEquals("QA-11", response.requirements[0].testing[0].key)
+    }
+
+    @Test
+    fun testGenerateIncludesSubtaskWhenRequestSystemIsEmpty() {
+        val ipsRelease = createIssue(key = "IPS-3040")
+        val requirement = createIssue(key = "REQ-640")
+        val devSubtask = createIssue(key = "DEV-52", typeName = "IPS Req Dev", system = listOf("SERVER"))
+        val qaSubtask = createIssue(key = "QA-12", typeName = "IPS Req QA", system = listOf("SERVER"))
+        stubSearchReturns(ipsRelease)
+        stubInwardLinks(ipsRelease, listOf(requirement))
+        stubSubtasks(requirement, listOf(devSubtask, qaSubtask))
+
+        val request = createRequest(system = "")
+        val response = service.generate(request)
+
+        assertEquals(1, response.requirements[0].development.size)
+        assertEquals(1, response.requirements[0].testing.size)
+    }
+
+    @Test
+    fun testGenerateIncludesSubtaskWhenIssueSystemListIsEmpty() {
+        val ipsRelease = createIssue(key = "IPS-3050")
+        val requirement = createIssue(key = "REQ-650")
+        val devSubtask = createIssue(key = "DEV-53", typeName = "IPS Req Dev", system = listOf())
+        val qaSubtask = createIssue(key = "QA-13", typeName = "IPS Req QA", system = listOf())
+        stubSearchReturns(ipsRelease)
+        stubInwardLinks(ipsRelease, listOf(requirement))
+        stubSubtasks(requirement, listOf(devSubtask, qaSubtask))
+
+        val request = createRequest()
+        val response = service.generate(request)
+
+        assertEquals(1, response.requirements[0].development.size)
+        assertEquals(1, response.requirements[0].testing.size)
+    }
+
+    @Test
+    fun testGenerateIncludesSubtaskWhenSystemListContainsMultipleValues() {
+        val ipsRelease = createIssue(key = "IPS-3060")
+        val requirement = createIssue(key = "REQ-660")
+        val devSubtask = createIssue(key = "DEV-54", typeName = "IPS Req Dev", system = listOf("SERVER", "CLASSIC"))
+        stubSearchReturns(ipsRelease)
+        stubInwardLinks(ipsRelease, listOf(requirement))
+        stubSubtasks(requirement, listOf(devSubtask))
+
+        val request = createRequest()
+        val response = service.generate(request)
+
+        assertEquals(1, response.requirements[0].development.size)
     }
 
     // ==================== I. IssueBean Mapping ====================

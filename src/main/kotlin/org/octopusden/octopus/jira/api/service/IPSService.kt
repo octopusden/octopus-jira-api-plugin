@@ -192,9 +192,11 @@ class IPSService(
 
     private fun getCustomFieldValueAsStringList(fieldName: String, issue: Issue): List<String> {
         val field = customFieldManager.getCustomFieldObjectsByName(fieldName).firstOrNull()
-            ?: return listOf()
-        val list = issue.getCustomFieldValue(field) as List<*>? ?: return emptyList()
-        return list.map(Any?::toString)
+            ?: return emptyList()
+        return when (val value = issue.getCustomFieldValue(field)) {
+            is List<*> -> value.map(Any?::toString)
+            else -> emptyList()
+        }
     }
 
     private fun toIssueBean(issue: Issue) = IssueBean(
