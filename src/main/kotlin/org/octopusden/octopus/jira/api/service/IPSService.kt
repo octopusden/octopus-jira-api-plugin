@@ -24,7 +24,6 @@ data class IPSRequest(
     val release: String? = null,
     val startDate: java.util.Date? = null,
     val system: String,
-    val clientCode: String?,
     val mandatory: Boolean = true
 )
 
@@ -85,59 +84,64 @@ class IPSService(
                 response.requirements.add(ipsRequirement)
 
                 // Development subtasks: IPS Req Dev
-                requirement.subTaskObjects
-                    .filter { it.issueType?.name == IPS_REQ_DEV_TYPE }
+                requirement.subTaskObjects.filter { it.issueType?.name == IPS_REQ_DEV_TYPE }
                     .forEach { devSubtask ->
                         logger.debug("Processing IPS Req Dev ${devSubtask.key}")
                         val ipsReqDev = IPSReqDev(
                             key = devSubtask.key,
                             summary = devSubtask.summary ?: "",
                             status = devSubtask.status.name,
-                            labels = devSubtask.labels.map { it.label }.toMutableList(),
+                            labels = devSubtask.labels.map { it.label }.toList(),
                             license = getCustomFieldStringValue(FIELD_LICENSE, devSubtask),
-                            system = getCustomFieldStringValue(FIELD_SYSTEM, devSubtask)
+                            system = getCustomFieldValueAsStringList(FIELD_SYSTEM, devSubtask)
                         )
-                        ipsRequirement.development.add(ipsReqDev)
-
-                        // Mandatory Update issues linked to the Dev subtask
-                        getInwardImplementsIssues(devSubtask, serviceUser)
-                            .let { if (request.mandatory) it.filter { it.issueType?.name == MANDATORY_UPDATE_TYPE } else it }
-                            .forEach { issue ->
+                        if (ipsReqDev.system.emptyOrContains(request.system)) {
+                            ipsRequirement.development.add(ipsReqDev)
+                            // Mandatory Update issues linked to the Dev subtask
+                            getInwardImplementsIssues(devSubtask, serviceUser).let {
+                                if (request.mandatory) it.filter { issue ->
+                                    issue.issueType?.name == MANDATORY_UPDATE_TYPE
+                                } else it
+                            }.forEach { issue ->
                                 val issueBean = toIssueBean(issue)
                                 val versionNames = issue.fixVersions.map { it.name }
                                 issue.components.forEach { jiraComponent ->
                                     val comp = ipsReqDev.components.find { it.name == jiraComponent.name }
-                                        ?: DevComponent(name = jiraComponent.name).also { ipsReqDev.components.add(it) }
+                                        ?: DevComponent(name = jiraComponent.name).also {
+                                            ipsReqDev.components.add(it)
+                                        }
                                     versionNames.forEach { v -> if (v !in comp.fixVersions) comp.fixVersions.add(v) }
                                     comp.issues.add(issueBean)
                                 }
                             }
+                        }
                     }
 
                 // Testing subtasks: IPS Req QA
-                requirement.subTaskObjects
-                    .filter { it.issueType?.name == IPS_REQ_QA_TYPE }
+                requirement.subTaskObjects.filter { it.issueType?.name == IPS_REQ_QA_TYPE }
                     .forEach { qaSubtask ->
                         logger.debug("Processing IPS Req QA ${qaSubtask.key}")
                         val ipsReqQA = IPSReqQA(
                             key = qaSubtask.key,
                             summary = qaSubtask.summary ?: "",
                             status = qaSubtask.status.name,
-                            system = getCustomFieldStringValue(FIELD_SYSTEM, qaSubtask)
+                            system = getCustomFieldValueAsStringList(FIELD_SYSTEM, qaSubtask)
                         )
-                        ipsRequirement.testing.add(ipsReqQA)
-
-                        // Test Development issues linked to the QA subtask
-                        getInwardImplementsIssues(qaSubtask, serviceUser)
-                            .filter { it.issueType?.name == TEST_DEVELOPMENT_TYPE }
-                            .forEach { testIssue ->
-                                ipsReqQA.cases.add(toIssueBean(testIssue))
-                            }
+                        if (ipsReqQA.system.emptyOrContains(request.system)) {
+                            ipsRequirement.testing.add(ipsReqQA)
+                            // Test Development issues linked to the QA subtask
+                            getInwardImplementsIssues(qaSubtask, serviceUser)
+                                .filter { it.issueType?.name == TEST_DEVELOPMENT_TYPE }
+                                .forEach { testIssue -> ipsReqQA.cases.add(toIssueBean(testIssue)) }
+                        }
                     }
             }
 
         return response
     }
+
+    private fun List<String>.emptyOrContains(string: String) =
+        string.isEmpty() || this.isEmpty() || this.any { it == string }
 
     private fun getIPSReleaseIssue(
         ips: String,
@@ -163,7 +167,7 @@ class IPSService(
         }
 
         val query = queryBuilder.buildQuery()
-        val issues = searchService.search(user, query, PagerFilter.getUnlimitedFilter()).results!! //?: emptyList()
+        val issues = searchService.search(user, query, PagerFilter.getUnlimitedFilter()).results ?: emptyList()
 
         return when (issues.size) {
             0 -> throw IllegalArgumentException("No IPS Releases found for $ips:$release")
@@ -184,6 +188,13 @@ class IPSService(
         val field = customFieldManager.getCustomFieldObjectsByName(fieldName).firstOrNull()
             ?: return ""
         return field.getValue(issue)?.toString() ?: ""
+    }
+
+    private fun getCustomFieldValueAsStringList(fieldName: String, issue: Issue): List<String> {
+        val field = customFieldManager.getCustomFieldObjectsByName(fieldName).firstOrNull()
+            ?: return listOf()
+        val list = issue.getCustomFieldValue(field) as List<*>? ?: return emptyList()
+        return list.map(Any?::toString)
     }
 
     private fun toIssueBean(issue: Issue) = IssueBean(

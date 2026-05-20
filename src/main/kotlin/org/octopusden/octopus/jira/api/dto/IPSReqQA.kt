@@ -4,6 +4,6 @@ data class IPSReqQA(
     val key: String,
     val summary: String,
     val status: String,
-    val system: String,
+    val system: List<String> = listOf(),
     val cases: MutableList<IssueBean> = mutableListOf()
 )

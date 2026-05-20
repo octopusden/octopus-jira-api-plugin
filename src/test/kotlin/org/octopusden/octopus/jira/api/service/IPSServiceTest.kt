@@ -40,6 +40,7 @@ class IPSServiceTest {
     private lateinit var mockServiceUser: ApplicationUser
     private lateinit var mockProductField: CustomField
     private lateinit var mockIpsReleaseField: CustomField
+    private lateinit var mockSystemField: CustomField
 
     companion object {
         private const val IPS_PROJECT = "IPS"
@@ -57,6 +58,7 @@ class IPSServiceTest {
         mockServiceUser = mockk()
         mockProductField = mockk()
         mockIpsReleaseField = mockk()
+        mockSystemField = mockk()
 
         mockkStatic(ComponentAccessor::class)
         mockkStatic(JqlQueryBuilder::class)
@@ -74,7 +76,7 @@ class IPSServiceTest {
         every { customFieldManager.getCustomFieldObjectsByName("License") } returns listOf(mockk { every { getValue(any()) } returns "Apache" })
         every { customFieldManager.getCustomFieldObjectsByName("IPS Requirement Region") } returns listOf(mockk { every { getValue(any()) } returns "EU" })
         every { customFieldManager.getCustomFieldObjectsByName("IPS Code") } returns listOf(mockk { every { getValue(any()) } returns "CODE-1" })
-        every { customFieldManager.getCustomFieldObjectsByName("System") } returns listOf(mockk { every { getValue(any()) } returns "CLASSIC" })
+        every { customFieldManager.getCustomFieldObjectsByName("System") } returns listOf(mockSystemField)
 
         // JqlQueryBuilder relaxed chain
         val mockQuery = mockk<com.atlassian.query.Query>()
@@ -110,7 +112,6 @@ class IPSServiceTest {
         release = release,
         startDate = startDate,
         system = "CLASSIC",
-        clientCode = "CC-1",
         mandatory = mandatory
     )
 
@@ -121,11 +122,14 @@ class IPSServiceTest {
         statusName: String = "Open",
         priorityName: String? = "High",
         resolutionName: String? = "Fixed",
+        system: List<String>? = listOf(),
         labels: List<String> = listOf("label1"),
         fixVersions: List<String> = listOf("v1.0"),
         componentNames: List<String> = listOf("comp1")
     ): Issue {
         val issue = mockk<Issue>(relaxed = true)
+        every { issue.getCustomFieldValue(mockSystemField) } returns system
+        every { issue.getCustomFieldValue(neq(mockSystemField)) } returns null
         every { issue.key } returns key
         every { issue.summary } returns summary
         every { issue.status } returns mockk<Status> { every { name } returns statusName }

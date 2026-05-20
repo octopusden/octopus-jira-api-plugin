@@ -38,7 +38,6 @@ class ApiRestService(
         @QueryParam("sinceDate") sinceDate: String?,
         @QueryParam("release") release: String?,
         @QueryParam("system") @DefaultValue("CLASSIC") system: String,
-        @QueryParam("clientCode") clientCode: String?,
         @QueryParam("mandatory") @DefaultValue("true") mandatory: Boolean
     ): Response {
         val request = if (release != null) {
@@ -48,7 +47,6 @@ class ApiRestService(
                 release = release,
                 startDate = null,
                 system = system,
-                clientCode = clientCode,
                 mandatory = mandatory
             )
         } else {
@@ -65,7 +63,6 @@ class ApiRestService(
                 release = null,
                 startDate = startDate,
                 system = system,
-                clientCode = clientCode,
                 mandatory = mandatory
             )
         }
