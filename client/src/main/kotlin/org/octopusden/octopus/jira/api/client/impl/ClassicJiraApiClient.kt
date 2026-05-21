@@ -24,8 +24,9 @@ class ClassicJiraApiClient(
         parametersProvider, getMapper()
     )
 
-    override fun getIps(ips: String, type: String, release: String, system: String, mandatory: Boolean) =
-        client.getIps(ips, type, release, system, mandatory)
+    override fun getIps(
+        ips: String, sinceYear: Int?, sinceDate: String?, release: String?, system: String?, mandatory: Boolean?
+    ) = client.getIps(ips, sinceYear, sinceDate, release, system, mandatory)
 
     private fun createClient(parametersProvider: JiraApiClientParametersProvider): JiraApiClient {
         return Feign.builder()
