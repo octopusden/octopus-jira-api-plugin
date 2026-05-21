@@ -87,7 +87,7 @@ class ApiRestService(
             logger.info("Generated IPS data for ${request.ips}:${request.release}")
             Response.ok(objectMapper.writeValueAsString(result)).build()
         } catch (e: IllegalArgumentException) {
-            "Bad request generating IPS data for ${request.ips}:${request.release} — ${e.message}".let {
+            "Bad request generating IPS data for ${request.ips}:${request.release} — ${e.message ?: "unknown error"}".let {
                 logger.warn(it)
                 throw BadRequestException(it)
             }

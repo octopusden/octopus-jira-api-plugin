@@ -10,4 +10,4 @@ abstract class JiraApiException(message: String, val code: String) : RuntimeExce
 }
 
 class BadRequestException(message: String) : JiraApiException(message, "API-40000")
-class FailedGenerateIPSException(message: String) : JiraApiException(message, "API-400001")
+class FailedGenerateIPSException(message: String) : JiraApiException(message, "API-40001")

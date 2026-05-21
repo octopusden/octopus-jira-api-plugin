@@ -1,5 +1,6 @@
 package org.octopusden.octopus.jira.api.client
 
+import com.fasterxml.jackson.core.JsonProcessingException
 import com.fasterxml.jackson.databind.ObjectMapper
 import feign.Response
 import feign.codec.ErrorDecoder
@@ -18,7 +19,7 @@ class JiraApiClientErrorDecoder(private val objectMapper: ObjectMapper) : ErrorD
                     val error = objectMapper.readValue(responseBody, ApplicationErrorResponse::class.java)
                     return@let JiraApiException.CODE_EXCEPTION_MAP[error.code]?.invoke(error.message)
                         ?: RuntimeException(error.message)
-                } catch (_: Exception) {
+                } catch (_: JsonProcessingException) {
                 }
             }
             return@let super.decode(methodKey, it)

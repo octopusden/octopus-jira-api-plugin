@@ -30,11 +30,12 @@ class IPSService(
 
         private const val IPS_REQ_DEV_TYPE = "IPS Req Dev"
         private const val IPS_REQ_QA_TYPE = "IPS Req QA"
+        private const val IPS_RELEASE_TYPE = "IPS Release"
         private const val MANDATORY_UPDATE_TYPE = "Mandatory Update"
+
         private const val TEST_DEVELOPMENT_TYPE = "Test Development"
 
         private const val LINK_TYPE_IMPLEMENTS = "Implements"
-
         private const val FIELD_PRODUCT = "Product"
         private const val FIELD_IPS_RELEASE = "IPS Release"
         private const val FIELD_LICENSE = "License"
@@ -149,7 +150,7 @@ class IPSService(
 
         val queryBuilder = JqlQueryBuilder.newBuilder().where()
             .project(ipsProject).and()
-            .issueType(FIELD_IPS_RELEASE).and()
+            .issueType(IPS_RELEASE_TYPE).and()
             .customField(productField.idAsLong).eq(ips)
 
         if (release != null) {

@@ -13,7 +13,6 @@ import org.apache.http.HttpHeaders
 import java.util.Base64
 import org.octopusden.octopus.jira.api.client.JiraApiClient
 import org.octopusden.octopus.jira.api.client.JiraApiClientErrorDecoder
-import java.nio.charset.Charset
 import java.util.concurrent.TimeUnit
 
 class ClassicJiraApiClient(
@@ -30,7 +29,7 @@ class ClassicJiraApiClient(
 
     private fun createClient(parametersProvider: JiraApiClientParametersProvider): JiraApiClient {
         return Feign.builder()
-            .options(Request.Options(5, TimeUnit.MINUTES, 5, TimeUnit.MINUTES, true))
+            .options(Request.Options(1, TimeUnit.MINUTES, 5, TimeUnit.MINUTES, true))
             .encoder(JacksonEncoder(objectMapper))
             .decoder(JacksonDecoder(objectMapper))
             .errorDecoder(JiraApiClientErrorDecoder(objectMapper)).requestInterceptor { requestTemplate ->
@@ -50,7 +49,7 @@ class ClassicJiraApiClient(
         } ?: parametersProvider.getBasicCredentials()?.let { basicCredentials ->
             if (basicCredentials.replace(":", "").isNotBlank()) {
                 "Basic ${
-                    base64Encoder.encodeToString(basicCredentials.toByteArray(Charset.forName(Charsets.UTF_8.name())))
+                    base64Encoder.encodeToString(basicCredentials.toByteArray(Charsets.UTF_8))
                 }"
             } else {
                 null
@@ -64,7 +63,7 @@ class ClassicJiraApiClient(
         private fun getMapper(): ObjectMapper {
             val objectMapper = ObjectMapper()
             objectMapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
-            objectMapper.registerModule(KotlinModule())
+            objectMapper.registerModule(KotlinModule.Builder().build())
             return objectMapper
         }
     }
