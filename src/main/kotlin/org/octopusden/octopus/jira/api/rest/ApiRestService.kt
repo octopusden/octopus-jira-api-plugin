@@ -37,7 +37,6 @@ class ApiRestService(
     @Path("ips/{ips}/type/{type}")
     fun getIPS(
         @PathParam("ips") ips: String,
-        @PathParam("type") type: String,
         @QueryParam("since") sinceYear: Int?,
         @QueryParam("sinceDate") sinceDate: String?,
         @QueryParam("release") release: String?,
@@ -47,7 +46,6 @@ class ApiRestService(
         val request = if (release != null) {
             IPSRequest(
                 ips = URLDecoder.decode(ips, "UTF-8"),
-                ipsType = type,
                 release = release,
                 startDate = null,
                 system = system,
@@ -75,7 +73,6 @@ class ApiRestService(
             }
             IPSRequest(
                 ips = URLDecoder.decode(ips, "UTF-8"),
-                ipsType = type,
                 release = null,
                 startDate = startDate,
                 system = system,

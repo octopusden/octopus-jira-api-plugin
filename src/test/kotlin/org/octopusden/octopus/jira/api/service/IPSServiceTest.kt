@@ -109,7 +109,6 @@ class IPSServiceTest {
         system: String = "CLASSIC"
     ) = IPSRequest(
         ips = "product-1",
-        ipsType = "type-A",
         release = release,
         startDate = startDate,
         system = system,

@@ -13,11 +13,10 @@ Octopus Jira API Plugin is specific Octopus API.
 Jira issue hierarchy (IPS Release → IPS Requirement → Dev/QA subtasks → linked issues) and returns aggregated JSON
 [source,httprequest]
 ----
-GET {{jira-url}}/rest/octopus-jira-api/1/api/ips/{{ips}}/type/{{type}}?
+GET {{jira-url}}/rest/octopus-jira-api/1/api/ips/{{ips}}?
     release={{release}}&
     system={{system}}&
     since={{}}&
     sinceDate={{}}&
-    clientCode={{}}&
     mandatory=false
 ----

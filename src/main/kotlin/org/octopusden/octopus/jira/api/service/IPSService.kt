@@ -20,7 +20,6 @@ import org.slf4j.LoggerFactory
 
 data class IPSRequest(
     val ips: String,
-    val ipsType: String,
     val release: String? = null,
     val startDate: java.util.Date? = null,
     val system: String,
@@ -157,7 +156,7 @@ class IPSService(
 
         val queryBuilder = JqlQueryBuilder.newBuilder().where()
             .project(ipsProject).and()
-            .issueType("IPS Release").and()
+            .issueType(FIELD_IPS_RELEASE).and()
             .customField(productField.idAsLong).eq(ips)
 
         if (release != null) {
