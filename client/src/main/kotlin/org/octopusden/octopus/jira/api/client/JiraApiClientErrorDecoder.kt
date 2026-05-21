@@ -4,8 +4,6 @@ import com.fasterxml.jackson.core.JsonProcessingException
 import com.fasterxml.jackson.databind.ObjectMapper
 import feign.Response
 import feign.codec.ErrorDecoder
-import org.apache.http.HttpHeaders
-import org.apache.http.entity.ContentType
 import org.octopusden.octopus.jira.api.exception.JiraApiException
 
 class JiraApiClientErrorDecoder(private val objectMapper: ObjectMapper) : ErrorDecoder.Default() {
@@ -14,7 +12,7 @@ class JiraApiClientErrorDecoder(private val objectMapper: ObjectMapper) : ErrorD
             val responseBody = it.body()?.asInputStream()?.use { inputStream ->
                 String(inputStream.readBytes())
             }
-            if (responseBody != null && it.headers()[HttpHeaders.CONTENT_TYPE]?.contains(ContentType.APPLICATION_JSON.mimeType) == true) {
+            if (responseBody != null && it.headers()["Content-Type"]?.contains("application/json") == true) {
                 try {
                     val error = objectMapper.readValue(responseBody, ApplicationErrorResponse::class.java)
                     return@let JiraApiException.CODE_EXCEPTION_MAP[error.code]?.invoke(error.message)

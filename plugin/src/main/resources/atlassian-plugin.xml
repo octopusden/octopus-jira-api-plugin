@@ -37,6 +37,9 @@
     <component key="octopus-api-object-mapper"
                class="com.fasterxml.jackson.databind.ObjectMapper"/>
 
+    <component key="octopus-api-exception-mapper"
+               class="org.octopusden.octopus.jira.api.exception.JiraApiExceptionMapper"/>
+
     <component key="octopus-api-settings-provider"
                class="org.octopusden.octopus.jira.api.config.ApiSettingsProvider"/>
 

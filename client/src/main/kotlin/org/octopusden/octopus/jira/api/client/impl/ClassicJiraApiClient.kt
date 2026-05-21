@@ -9,7 +9,7 @@ import feign.Request
 import feign.jackson.JacksonDecoder
 import feign.jackson.JacksonEncoder
 import feign.slf4j.Slf4jLogger
-import org.apache.http.HttpHeaders
+
 import java.util.Base64
 import org.octopusden.octopus.jira.api.client.JiraApiClient
 import org.octopusden.octopus.jira.api.client.JiraApiClientErrorDecoder
@@ -34,7 +34,7 @@ class ClassicJiraApiClient(
             .decoder(JacksonDecoder(objectMapper))
             .errorDecoder(JiraApiClientErrorDecoder(objectMapper)).requestInterceptor { requestTemplate ->
                 val authHeader = getAuthHeader()
-                requestTemplate.header(HttpHeaders.AUTHORIZATION, authHeader)
+                requestTemplate.header("Authorization", authHeader)
             }.logger(Slf4jLogger(JiraApiClient::class.java)).logLevel(Logger.Level.BASIC)
             .target(JiraApiClient::class.java, parametersProvider.getApiUrl())
     }
@@ -63,7 +63,7 @@ class ClassicJiraApiClient(
         private fun getMapper(): ObjectMapper {
             val objectMapper = ObjectMapper()
             objectMapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
-            objectMapper.registerModule(KotlinModule.Builder().build())
+            objectMapper.registerModule(KotlinModule())
             return objectMapper
         }
     }

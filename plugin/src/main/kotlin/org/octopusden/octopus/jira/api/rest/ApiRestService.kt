@@ -64,14 +64,10 @@ class ApiRestService(
                         LocalDate.parse(sinceDate, DATE_FORMAT_DATE)
                             .atStartOfDay().toInstant(ZoneOffset.UTC)
                     )
-                    else -> return Response.status(400)
-                        .entity(objectMapper.writeValueAsString(mapOf("error" to "either since or sinceDate parameters need to be set")))
-                        .build()
+                    else -> throw BadRequestException("Either since or sinceDate parameters need to be set")
                 }
             } catch (e: DateTimeParseException) {
-                return Response.status(400)
-                    .entity(objectMapper.writeValueAsString(mapOf("error" to "Invalid date format: ${e.message}")))
-                    .build()
+                throw BadRequestException("Invalid date format: ${e.message}")
             }
             IPSRequest(
                 ips = URLDecoder.decode(ips, "UTF-8"),

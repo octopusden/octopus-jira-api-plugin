@@ -18,7 +18,7 @@
     <dependencies>
         <dependency>
             <groupId>org.octopusden.octopus.jira</groupId>
-            <artifactId>octopus-jira-api-core</artifactId>
+            <artifactId>octopus-jira-api-common</artifactId>
             <version>${project.version}</version>
         </dependency>
 

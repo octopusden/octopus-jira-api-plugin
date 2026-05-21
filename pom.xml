@@ -40,7 +40,7 @@
     </parent>
 
     <modules>
-        <module>core</module>
+        <module>common</module>
         <module>client</module>
         <module>plugin</module>
     </modules>

@@ -10,7 +10,7 @@
         <relativePath>../pom.xml</relativePath>
     </parent>
 
-    <artifactId>octopus-jira-api-core</artifactId>
+    <artifactId>octopus-jira-api-common</artifactId>
     <name>Octopus JIRA API Core</name>
     <description>DTOs for Octopus JIRA API</description>
     <packaging>jar</packaging>
