@@ -77,6 +77,10 @@
                     <groupId>jndi</groupId>
                     <artifactId>jndi</artifactId>
                 </exclusion>
+                <exclusion>
+                    <groupId>jta</groupId>
+                    <artifactId>jta</artifactId>
+                </exclusion>
             </exclusions>
         </dependency>
 
@@ -97,6 +101,10 @@
                 <exclusion>
                     <groupId>jndi</groupId>
                     <artifactId>jndi</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>jta</groupId>
+                    <artifactId>jta</artifactId>
                 </exclusion>
             </exclusions>
         </dependency>
