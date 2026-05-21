@@ -34,7 +34,7 @@ class ApiRestService(
 
     @GET
     @Produces(MediaType.APPLICATION_JSON)
-    @Path("ips/{ips}/type/{type}")
+    @Path("ips/{ips}")
     fun getIPS(
         @PathParam("ips") ips: String,
         @QueryParam("since") sinceYear: Int?,
