@@ -24,12 +24,12 @@ import org.slf4j.LoggerFactory
 
 @AnonymousAllowed
 @Path("/api")
-class ApiRestService(
+class ApiRestController(
     private val ipsService: IPSService,
     private val objectMapper: ObjectMapper,
 ) {
     companion object {
-        private val logger = LoggerFactory.getLogger(ApiRestService::class.java)
+        private val logger = LoggerFactory.getLogger(ApiRestController::class.java)
         private val DATE_FORMAT_YEAR = DateTimeFormatter.ofPattern("yyyy")
         private val DATE_FORMAT_DATE = DateTimeFormatter.ofPattern("yyyy-MM-dd")
     }
