@@ -25,4 +25,4 @@ class JiraApiClientErrorDecoder(private val objectMapper: ObjectMapper) : ErrorD
 
 }
 
-data class ApplicationErrorResponse(val code: String, val detail: String, val message: String)
+data class ApplicationErrorResponse(val code: String, val message: String, val detail: String? = "")
