@@ -10,13 +10,14 @@ import com.atlassian.jira.web.bean.PagerFilter
 import org.octopusden.octopus.jira.api.config.ApiSetting
 import org.octopusden.octopus.jira.api.config.ApiSettingsProvider
 import org.octopusden.octopus.jira.api.dto.DevComponent
-import org.octopusden.octopus.jira.api.dto.IPSResponse
 import org.octopusden.octopus.jira.api.dto.IPSReqDev
 import org.octopusden.octopus.jira.api.dto.IPSReqQA
 import org.octopusden.octopus.jira.api.dto.IPSRequirement
 import org.octopusden.octopus.jira.api.dto.IPSRequest
+import org.octopusden.octopus.jira.api.dto.IPSResponse
 import org.octopusden.octopus.jira.api.dto.IssueBean
 import com.atlassian.jira.component.ComponentAccessor
+import com.atlassian.jira.issue.fields.CustomField
 import org.slf4j.LoggerFactory
 
 class IPSService(
@@ -44,93 +45,111 @@ class IPSService(
         private const val FIELD_SYSTEM = "System"
     }
 
+    private val fieldProduct = customFieldManager.getCustomFieldObjectsByName(FIELD_PRODUCT).firstOrNull()
+        ?: throw IllegalStateException("Custom field '$FIELD_PRODUCT' not found")
+    private val fieldIpsRelease = customFieldManager.getCustomFieldObjectsByName(FIELD_IPS_RELEASE).firstOrNull()
+        ?: throw IllegalStateException("Custom field '$FIELD_IPS_RELEASE' not found")
+    private val fieldLicense = customFieldManager.getCustomFieldObjectsByName(FIELD_LICENSE).firstOrNull()
+    private val fieldIpsRequirementRegion = customFieldManager.getCustomFieldObjectsByName(FIELD_IPS_REQUIREMENT_REGION).firstOrNull()
+    private val fieldIpsCode = customFieldManager.getCustomFieldObjectsByName(FIELD_IPS_CODE).firstOrNull()
+    private val fieldSystem = customFieldManager.getCustomFieldObjectsByName(FIELD_SYSTEM).firstOrNull()
+
     fun generate(request: IPSRequest): IPSResponse {
         val serviceUser = getServiceUser()
         val ipsProject = settingsProvider.getString(ApiSetting.IPS_REPORTS_PROJECT)
+
 
         val ipsReleaseIssue =
             getIPSReleaseIssue(request.ips, request.release, request.startDate, ipsProject, serviceUser)
         logger.info("Found IPS Release issue ${ipsReleaseIssue.key} for ${request.ips}:${request.release}")
 
-        val response = IPSResponse(
+        val requirements = getInwardImplementsIssues(ipsReleaseIssue, serviceUser)
+            .filter { it.issueType?.name == "IPS Requirement" }
+            .map { requirement ->
+                logger.debug("Processing IPS Requirement ${requirement.key}")
+
+                val development = requirement.subTaskObjects
+                    .filter { it.issueType?.name == IPS_REQ_DEV_TYPE }
+                    .mapNotNull { devSubtask -> buildDevSubtask(devSubtask, request, serviceUser) }
+
+                val testing = requirement.subTaskObjects
+                    .filter { it.issueType?.name == IPS_REQ_QA_TYPE }
+                    .mapNotNull { qaSubtask -> buildQASubtask(qaSubtask, request, serviceUser) }
+
+                IPSRequirement(
+                    key = requirement.key,
+                    name = requirement.summary ?: "",
+                    status = requirement.status.name,
+                    labels = requirement.labels.map { it.label },
+                    region = getCustomFieldStringValue(fieldIpsRequirementRegion, requirement),
+                    license = getCustomFieldStringValue(fieldLicense, requirement),
+                    ipsCode = getCustomFieldStringValue(fieldIpsCode, requirement),
+                    development = development,
+                    testing = testing
+                )
+            }
+
+        return IPSResponse(
             key = ipsReleaseIssue.key,
             ips = request.ips,
             release = request.release ?: "",
             status = ipsReleaseIssue.status.name,
-            labels = ipsReleaseIssue.labels.map { it.label }.toMutableList()
+            labels = ipsReleaseIssue.labels.map { it.label },
+            requirements = requirements
         )
+    }
 
-        getInwardImplementsIssues(ipsReleaseIssue, serviceUser)
-            .filter { it.issueType?.name == "IPS Requirement" }
-            .forEach { requirement ->
-                logger.debug("Processing IPS Requirement ${requirement.key}")
+    private fun buildDevSubtask(devSubtask: Issue, request: IPSRequest, serviceUser: ApplicationUser): IPSReqDev? {
+        logger.debug("Processing IPS Req Dev ${devSubtask.key}")
+        val system = getCustomFieldValueAsStringList(fieldSystem, devSubtask)
+        if (!system.emptyOrContains(request.system)) return null
 
-                val ipsRequirement = IPSRequirement(
-                    key = requirement.key,
-                    name = requirement.summary ?: "",
-                    status = requirement.status.name,
-                    labels = requirement.labels.map { it.label }.toMutableList(),
-                    region = getCustomFieldStringValue(FIELD_IPS_REQUIREMENT_REGION, requirement),
-                    license = getCustomFieldStringValue(FIELD_LICENSE, requirement),
-                    ipsCode = getCustomFieldStringValue(FIELD_IPS_CODE, requirement)
+        val versionToIssues = getInwardImplementsIssues(devSubtask, serviceUser).let { issues ->
+            if (request.mandatory) issues.filter { it.issueType?.name == MANDATORY_UPDATE_TYPE } else issues
+        }.flatMap { issue ->
+            val issueBean = toIssueBean(issue)
+            val versionNames = issue.fixVersions.map { it.name }
+            val versions = if (versionNames.isEmpty()) listOf("") else versionNames
+            issue.components.flatMap { jiraComponent ->
+                versions.map { version -> Triple(jiraComponent.name, version, issueBean) }
+            }
+        }
+
+        val components = versionToIssues
+            .groupBy({ it.first }) { it.second to it.third }
+            .map { (compName, pairs) ->
+                DevComponent(
+                    name = compName,
+                    fixVersions = pairs.map { it.first }.filter { it.isNotEmpty() }.distinct(),
+                    issues = pairs.map { it.second }
                 )
-                response.requirements.add(ipsRequirement)
-
-                // Development subtasks: IPS Req Dev
-                requirement.subTaskObjects.filter { it.issueType?.name == IPS_REQ_DEV_TYPE }
-                    .forEach { devSubtask ->
-                        logger.debug("Processing IPS Req Dev ${devSubtask.key}")
-                        val ipsReqDev = IPSReqDev(
-                            key = devSubtask.key,
-                            summary = devSubtask.summary ?: "",
-                            status = devSubtask.status.name,
-                            labels = devSubtask.labels.map { it.label }.toList(),
-                            license = getCustomFieldStringValue(FIELD_LICENSE, devSubtask),
-                            system = getCustomFieldValueAsStringList(FIELD_SYSTEM, devSubtask)
-                        )
-                        if (ipsReqDev.system.emptyOrContains(request.system)) {
-                            ipsRequirement.development.add(ipsReqDev)
-                            // Mandatory Update issues linked to the Dev subtask
-                            getInwardImplementsIssues(devSubtask, serviceUser).let {
-                                if (request.mandatory) it.filter { issue ->
-                                    issue.issueType?.name == MANDATORY_UPDATE_TYPE
-                                } else it
-                            }.forEach { issue ->
-                                val issueBean = toIssueBean(issue)
-                                val versionNames = issue.fixVersions.map { it.name }
-                                issue.components.forEach { jiraComponent ->
-                                    val comp = ipsReqDev.components.find { it.name == jiraComponent.name }
-                                        ?: DevComponent(name = jiraComponent.name).also {
-                                            ipsReqDev.components.add(it)
-                                        }
-                                    versionNames.forEach { v -> if (v !in comp.fixVersions) comp.fixVersions.add(v) }
-                                    comp.issues.add(issueBean)
-                                }
-                            }
-                        }
-                    }
-
-                // Testing subtasks: IPS Req QA
-                requirement.subTaskObjects.filter { it.issueType?.name == IPS_REQ_QA_TYPE }
-                    .forEach { qaSubtask ->
-                        logger.debug("Processing IPS Req QA ${qaSubtask.key}")
-                        val ipsReqQA = IPSReqQA(
-                            key = qaSubtask.key,
-                            summary = qaSubtask.summary ?: "",
-                            status = qaSubtask.status.name,
-                            system = getCustomFieldValueAsStringList(FIELD_SYSTEM, qaSubtask)
-                        )
-                        if (ipsReqQA.system.emptyOrContains(request.system)) {
-                            ipsRequirement.testing.add(ipsReqQA)
-                            // Test Development issues linked to the QA subtask
-                            getInwardImplementsIssues(qaSubtask, serviceUser)
-                                .filter { it.issueType?.name == TEST_DEVELOPMENT_TYPE }
-                                .forEach { testIssue -> ipsReqQA.cases.add(toIssueBean(testIssue)) }
-                        }
-                    }
             }
 
-        return response
+        return IPSReqDev(
+            key = devSubtask.key,
+            summary = devSubtask.summary ?: "",
+            status = devSubtask.status.name,
+            labels = devSubtask.labels.map { it.label },
+            license = getCustomFieldStringValue(fieldLicense, devSubtask),
+            system = system,
+            components = components
+        )
+    }
+
+    private fun buildQASubtask(qaSubtask: Issue, request: IPSRequest, serviceUser: ApplicationUser): IPSReqQA? {
+        logger.debug("Processing IPS Req QA ${qaSubtask.key}")
+        val system = getCustomFieldValueAsStringList(fieldSystem, qaSubtask)
+        if (!system.emptyOrContains(request.system)) return null
+
+        return IPSReqQA(
+            key = qaSubtask.key,
+            summary = qaSubtask.summary ?: "",
+            status = qaSubtask.status.name,
+            system = system,
+            cases = getInwardImplementsIssues(qaSubtask, serviceUser)
+                .filter { it.issueType?.name == TEST_DEVELOPMENT_TYPE }
+                .map { testIssue -> toIssueBean(testIssue) }
+        )
     }
 
     private fun List<String>.emptyOrContains(string: String) =
@@ -143,18 +162,13 @@ class IPSService(
         ipsProject: String,
         user: ApplicationUser
     ): Issue {
-        val productField = customFieldManager.getCustomFieldObjectsByName(FIELD_PRODUCT).firstOrNull()
-            ?: throw IllegalStateException("Custom field '$FIELD_PRODUCT' not found")
-        val ipsReleaseField = customFieldManager.getCustomFieldObjectsByName(FIELD_IPS_RELEASE).firstOrNull()
-            ?: throw IllegalStateException("Custom field '$FIELD_IPS_RELEASE' not found")
-
         val queryBuilder = JqlQueryBuilder.newBuilder().where()
             .project(ipsProject).and()
             .issueType(IPS_RELEASE_TYPE).and()
-            .customField(productField.idAsLong).eq(ips)
+            .customField(fieldProduct.idAsLong).eq(ips)
 
         if (release != null) {
-            queryBuilder.and().customField(ipsReleaseField.idAsLong).eq(release)
+            queryBuilder.and().customField(fieldIpsRelease.idAsLong).eq(release)
         } else if (startDate != null) {
             queryBuilder.and().createdAfter(startDate)
         }
@@ -177,15 +191,12 @@ class IPSService(
             ?: emptyList()
     }
 
-    private fun getCustomFieldStringValue(fieldName: String, issue: Issue): String {
-        val field = customFieldManager.getCustomFieldObjectsByName(fieldName).firstOrNull()
-            ?: return ""
-        return field.getValue(issue)?.toString() ?: ""
+    private fun getCustomFieldStringValue(field: CustomField?, issue: Issue): String {
+        return field?.getValue(issue)?.toString() ?: ""
     }
 
-    private fun getCustomFieldValueAsStringList(fieldName: String, issue: Issue): List<String> {
-        val field = customFieldManager.getCustomFieldObjectsByName(fieldName).firstOrNull()
-            ?: return emptyList()
+    private fun getCustomFieldValueAsStringList(field: CustomField?, issue: Issue): List<String> {
+        if(field == null) return emptyList()
         return when (val value = issue.getCustomFieldValue(field)) {
             is List<*> -> value.map(Any?::toString)
             else -> emptyList()

@@ -5,6 +5,6 @@ data class IPSResponse(
     val ips: String,
     val release: String,
     val status: String,
-    val labels: MutableList<String> = mutableListOf(),
-    val requirements: MutableList<IPSRequirement> = mutableListOf()
+    val labels: List<String> = emptyList(),
+    val requirements: List<IPSRequirement> = emptyList()
 )

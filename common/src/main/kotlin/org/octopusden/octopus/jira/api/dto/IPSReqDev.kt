@@ -7,5 +7,5 @@ data class IPSReqDev(
     val labels: List<String> = listOf(),
     val license: String,
     val system: List<String> = listOf(),
-    val components: MutableList<DevComponent> = mutableListOf()
+    val components: List<DevComponent> = emptyList()
 )

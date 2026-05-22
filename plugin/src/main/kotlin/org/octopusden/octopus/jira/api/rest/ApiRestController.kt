@@ -21,6 +21,7 @@ import javax.ws.rs.QueryParam
 import javax.ws.rs.core.MediaType
 import javax.ws.rs.core.Response
 import org.slf4j.LoggerFactory
+import java.time.Year
 
 @AnonymousAllowed
 @Path("/api")
@@ -57,8 +58,8 @@ class ApiRestController(
             val startDate = try {
                 when {
                     sinceYear != null -> Date.from(
-                        LocalDate.parse(sinceYear.toString(), DATE_FORMAT_YEAR)
-                            .atStartOfDay().toInstant(ZoneOffset.UTC)
+                        Year.parse(sinceYear.toString(), DATE_FORMAT_YEAR)
+                            .atDay(1).atStartOfDay().toInstant(ZoneOffset.UTC)
                     )
                     sinceDate != null -> Date.from(
                         LocalDate.parse(sinceDate, DATE_FORMAT_DATE)

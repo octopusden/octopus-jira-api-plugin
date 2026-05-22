@@ -4,10 +4,10 @@ data class IPSRequirement(
     val key: String,
     val name: String,
     val status: String,
-    val labels: MutableList<String> = mutableListOf(),
+    val labels: List<String> = emptyList(),
     val region: String,
     val license: String,
     val ipsCode: String,
-    val development: MutableList<IPSReqDev> = mutableListOf(),
-    val testing: MutableList<IPSReqQA> = mutableListOf()
+    val development: List<IPSReqDev> = emptyList(),
+    val testing: List<IPSReqQA> = emptyList()
 )
