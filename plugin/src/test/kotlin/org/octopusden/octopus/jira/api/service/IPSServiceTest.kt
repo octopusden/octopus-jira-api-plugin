@@ -95,8 +95,11 @@ class IPSServiceTest {
         every { emptyLinkCollection.getInwardIssues("Implements") } returns emptyList()
         every { issueLinkManager.getLinkCollection(any<Issue>(), any()) } returns emptyLinkCollection
 
-        service = IPSService(issueLinkManager, customFieldManager, searchService, settingsProvider)
+        service = createService()
     }
+
+    private fun createService(): IPSService =
+        IPSService(issueLinkManager, customFieldManager, searchService, settingsProvider)
 
     @After
     fun tearDown() {
@@ -184,8 +187,7 @@ class IPSServiceTest {
     fun testGenerateThrowsWhenProductCustomFieldNotFound() {
         every { customFieldManager.getCustomFieldObjectsByName("Product") } returns emptyList()
 
-        val request = createRequest()
-        val ex = assertThrows(IllegalStateException::class.java) { service.generate(request) }
+        val ex = assertThrows(IllegalStateException::class.java) { createService() }
         assertTrue(ex.message!!.contains("Product"))
     }
 
@@ -193,8 +195,7 @@ class IPSServiceTest {
     fun testGenerateThrowsWhenIpsReleaseCustomFieldNotFound() {
         every { customFieldManager.getCustomFieldObjectsByName("IPS Release") } returns emptyList()
 
-        val request = createRequest()
-        val ex = assertThrows(IllegalStateException::class.java) { service.generate(request) }
+        val ex = assertThrows(IllegalStateException::class.java) { createService() }
         assertTrue(ex.message!!.contains("IPS Release"))
     }
 
@@ -349,12 +350,13 @@ class IPSServiceTest {
         stubSearchReturns(ipsRelease)
         stubInwardLinks(ipsRelease, listOf(requirement))
 
-        every { customFieldManager.getCustomFieldObjectsByName("License") } returns listOf(mockk { every { getValue(requirement) } returns null })
-        every { customFieldManager.getCustomFieldObjectsByName("IPS Requirement Region") } returns listOf(mockk { every { getValue(requirement) } returns null })
-        every { customFieldManager.getCustomFieldObjectsByName("IPS Code") } returns listOf(mockk { every { getValue(requirement) } returns null })
+        every { customFieldManager.getCustomFieldObjectsByName("License") } returns listOf(mockk { every { getValue(any()) } returns null })
+        every { customFieldManager.getCustomFieldObjectsByName("IPS Requirement Region") } returns listOf(mockk { every { getValue(any()) } returns null })
+        every { customFieldManager.getCustomFieldObjectsByName("IPS Code") } returns listOf(mockk { every { getValue(any()) } returns null })
+        val freshService = createService()
 
         val request = createRequest()
-        val response = service.generate(request)
+        val response = freshService.generate(request)
 
         assertEquals("", response.requirements[0].region)
         assertEquals("", response.requirements[0].license)
@@ -369,9 +371,10 @@ class IPSServiceTest {
         stubInwardLinks(ipsRelease, listOf(requirement))
 
         every { customFieldManager.getCustomFieldObjectsByName("IPS Requirement Region") } returns emptyList()
+        val freshService = createService()
 
         val request = createRequest()
-        val response = service.generate(request)
+        val response = freshService.generate(request)
 
         assertEquals("", response.requirements[0].region)
     }

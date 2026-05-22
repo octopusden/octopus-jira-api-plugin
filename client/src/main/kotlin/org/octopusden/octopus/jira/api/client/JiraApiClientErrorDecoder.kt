@@ -10,7 +10,7 @@ class JiraApiClientErrorDecoder(private val objectMapper: ObjectMapper) : ErrorD
     override fun decode(methodKey: String?, response: Response?): Exception =
         response?.let {
             val responseBody = it.body()?.asInputStream()?.use { inputStream ->
-                String(inputStream.readBytes())
+                String(inputStream.readBytes(), Charsets.UTF_8)
             }
             if (responseBody != null && it.headers()["Content-Type"]?.contains("application/json") == true) {
                 try {

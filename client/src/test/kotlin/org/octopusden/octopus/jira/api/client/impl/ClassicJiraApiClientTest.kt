@@ -1,14 +1,13 @@
 package org.octopusden.octopus.jira.api.client.impl
 
-import com.fasterxml.jackson.databind.DeserializationFeature
 import com.fasterxml.jackson.databind.ObjectMapper
-import com.fasterxml.jackson.module.kotlin.KotlinModule
 import io.mockk.every
 import io.mockk.mockk
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
+import org.octopusden.octopus.jira.api.config.JacksonMapper
 
 class ClassicJiraApiClientTest {
 
@@ -17,9 +16,7 @@ class ClassicJiraApiClientTest {
 
     @Before
     fun setup() {
-        objectMapper = ObjectMapper()
-            .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
-            .registerModule(KotlinModule())
+        objectMapper = JacksonMapper.create()
         parametersProvider = mockk(relaxed = true)
         every { parametersProvider.getApiUrl() } returns "http://localhost:8080"
     }

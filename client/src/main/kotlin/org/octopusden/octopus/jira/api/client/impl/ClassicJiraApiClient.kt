@@ -1,8 +1,6 @@
 package org.octopusden.octopus.jira.api.client.impl
 
-import com.fasterxml.jackson.databind.DeserializationFeature
 import com.fasterxml.jackson.databind.ObjectMapper
-import com.fasterxml.jackson.module.kotlin.KotlinModule
 import feign.Feign
 import feign.Logger
 import feign.Request
@@ -13,6 +11,7 @@ import feign.slf4j.Slf4jLogger
 import java.util.Base64
 import org.octopusden.octopus.jira.api.client.JiraApiClient
 import org.octopusden.octopus.jira.api.client.JiraApiClientErrorDecoder
+import org.octopusden.octopus.jira.api.config.JacksonMapper
 import java.util.concurrent.TimeUnit
 
 class ClassicJiraApiClient(
@@ -21,7 +20,7 @@ class ClassicJiraApiClient(
     private val client = createClient(parametersProvider)
 
     constructor(parametersProvider: JiraApiClientParametersProvider) : this(
-        parametersProvider, getMapper()
+        parametersProvider, JacksonMapper.create()
     )
 
     override fun getIps(
@@ -61,11 +60,5 @@ class ClassicJiraApiClient(
 
     companion object {
         private val base64Encoder = Base64.getEncoder()
-        private fun getMapper(): ObjectMapper {
-            val objectMapper = ObjectMapper()
-            objectMapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
-            objectMapper.registerModule(KotlinModule())
-            return objectMapper
-        }
     }
 }

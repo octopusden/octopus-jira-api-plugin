@@ -1,8 +1,6 @@
 package org.octopusden.octopus.jira.api.client
 
-import com.fasterxml.jackson.databind.DeserializationFeature
 import com.fasterxml.jackson.databind.ObjectMapper
-import com.fasterxml.jackson.module.kotlin.KotlinModule
 import feign.FeignException
 import feign.Response
 import io.mockk.mockk
@@ -10,6 +8,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
+import org.octopusden.octopus.jira.api.config.JacksonMapper
 import org.octopusden.octopus.jira.api.exception.BadRequestException
 import org.octopusden.octopus.jira.api.exception.FailedGenerateIPSException
 import java.nio.charset.StandardCharsets
@@ -21,9 +20,7 @@ class JiraApiClientErrorDecoderTest {
 
     @Before
     fun setup() {
-        objectMapper = ObjectMapper()
-            .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
-            .registerModule(KotlinModule())
+        objectMapper = JacksonMapper.create()
         decoder = JiraApiClientErrorDecoder(objectMapper)
     }
 

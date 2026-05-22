@@ -35,7 +35,8 @@
 
     <!-- Plugin beans -->
     <component key="octopus-api-object-mapper"
-               class="com.fasterxml.jackson.databind.ObjectMapper"/>
+               class="org.octopusden.octopus.jira.api.config.JacksonMapper"
+               instantiation-strategy="factory"/>
 
     <component key="octopus-api-exception-mapper"
                class="org.octopusden.octopus.jira.api.exception.JiraApiExceptionMapper"/>

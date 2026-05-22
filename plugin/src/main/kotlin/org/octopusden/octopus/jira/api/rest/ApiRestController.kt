@@ -48,7 +48,7 @@ class ApiRestController(
     ): Response {
         val request = if (release != null) {
             IPSRequest(
-                ips = URLDecoder.decode(ips, "UTF-8"),
+                ips = ips,
                 release = release,
                 startDate = null,
                 system = system,
