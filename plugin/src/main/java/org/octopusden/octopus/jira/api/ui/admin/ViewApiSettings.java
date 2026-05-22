@@ -10,8 +10,7 @@ public class ViewApiSettings extends AbstractViewApiSettings {
 
     private final List<ApiSetting> availableSettings = Arrays.asList(
             ApiSetting.IPS_REPORTS_PROJECT,
-            ApiSetting.SERVICE_USER,
-            ApiSetting.SERVICE_USER_PASSWORD
+            ApiSetting.SERVICE_USER
     );
 
     public ViewApiSettings(ApiSettingsProvider settingsProvider) {
