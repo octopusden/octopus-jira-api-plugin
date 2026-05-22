@@ -1,0 +1,22 @@
+:icons: font
+:header: Octopus Jira API Plugin
+= {header}
+:toc:
+
+IMPORTANT: This page is auto-generated!
+
+== Introduction
+
+Octopus Jira API Plugin provides a dedicated Octopus API.
+
+=== IPS data API
+Jira issue hierarchy (IPS Release → IPS Requirement → Dev/QA subtasks → linked issues) and returns aggregated JSON
+[source,httprequest]
+----
+GET {{jira-url}}/rest/octopus-jira-api/1/api/ips/{{ips}}?
+    release={{release}}&
+    system={{system}}&
+    since={{since}}&
+    sinceDate={{sinceDate}}&
+    mandatory=false
+----
