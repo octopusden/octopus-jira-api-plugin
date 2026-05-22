@@ -48,12 +48,12 @@
 
     <!-- Admin UI -->
     <web-section key="octopus_api_section" location="admin_plugins_menu" name="Octopus API" weight="200">
-        <label key="Octopus API Plugin" />
+        <label key="octopus.api.plugin.label" />
     </web-section>
 
     <web-item key="octopus-api-settings" name="Octopus API Plugin Settings"
               section="admin_plugins_menu/octopus_api_section" weight="100">
-        <label key="Octopus API Settings" />
+        <label key="octopus.api.settings.label" />
         <link linkId="octopus-api-settings">/secure/admin/ViewApiSettings!default.jspa</link>
     </web-item>
 
