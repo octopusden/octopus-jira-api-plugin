@@ -41,8 +41,7 @@ enum class ApiSetting(
     val values: List<String> = emptyList()
 ) {
     IPS_REPORTS_PROJECT("ips-reports.project", "IPS Reports Project", SettingType.TEXT),
-    SERVICE_USER("service-user.username", "Service User", SettingType.TEXT),
-    SERVICE_USER_PASSWORD("service-user.password", "Service User Password", SettingType.PASSWORD);
+    SERVICE_USER("service-user.username", "Service User", SettingType.TEXT);
 
     enum class SettingType { TEXT, PASSWORD, SELECT }
 }

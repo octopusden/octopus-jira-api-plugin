@@ -6,7 +6,6 @@ import org.octopusden.octopus.jira.api.dto.IPSRequest
 import org.octopusden.octopus.jira.api.exception.BadRequestException
 import org.octopusden.octopus.jira.api.exception.FailedGenerateIPSException
 import org.octopusden.octopus.jira.api.service.IPSService
-import java.net.URLDecoder
 import java.time.LocalDate
 import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
@@ -71,7 +70,7 @@ class ApiRestController(
                 throw BadRequestException("Invalid date format: ${e.message}")
             }
             IPSRequest(
-                ips = URLDecoder.decode(ips, "UTF-8"),
+                ips = ips,
                 release = null,
                 startDate = startDate,
                 system = system,
