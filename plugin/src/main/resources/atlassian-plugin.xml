@@ -36,7 +36,8 @@
     <!-- Plugin beans -->
     <component key="octopus-api-object-mapper"
                class="org.octopusden.octopus.jira.api.config.JacksonMapper"
-               instantiation-strategy="factory"/>
+               public="true"
+               interface="com.fasterxml.jackson.databind.ObjectMapper"/>
 
     <component key="octopus-api-exception-mapper"
                class="org.octopusden.octopus.jira.api.exception.JiraApiExceptionMapper"/>
@@ -49,12 +50,12 @@
 
     <!-- Admin UI -->
     <web-section key="octopus_api_section" location="admin_plugins_menu" name="Octopus API" weight="200">
-        <label key="octopus.api.plugin.label" />
+        <label key="Octopus API" />
     </web-section>
 
     <web-item key="octopus-api-settings" name="Octopus API Plugin Settings"
               section="admin_plugins_menu/octopus_api_section" weight="100">
-        <label key="octopus.api.settings.label" />
+        <label key="Octopus API Settings" />
         <link linkId="octopus-api-settings">/secure/admin/ViewApiSettings!default.jspa</link>
     </web-item>
 

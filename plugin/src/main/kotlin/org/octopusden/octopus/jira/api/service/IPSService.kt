@@ -153,7 +153,7 @@ class IPSService(
     }
 
     private fun List<String>.emptyOrContains(string: String) =
-        string.isEmpty() || this.isEmpty() || this.any { it == string }
+        string.isEmpty() || this.isEmpty() || this.any { it.equals(string, ignoreCase = true) }
 
     private fun getIPSReleaseIssue(
         ips: String,

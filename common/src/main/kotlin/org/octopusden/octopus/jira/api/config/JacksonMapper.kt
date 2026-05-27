@@ -4,10 +4,14 @@ import com.fasterxml.jackson.databind.DeserializationFeature
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.kotlin.KotlinModule
 
-object JacksonMapper {
+class JacksonMapper : ObjectMapper() {
+    init {
+        configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
+        registerModule(KotlinModule())
+    }
 
-    @JvmStatic
-    fun create(): ObjectMapper = ObjectMapper()
-        .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
-        .registerModule(KotlinModule())
+    companion object {
+        @JvmStatic
+        fun create(): ObjectMapper = JacksonMapper()
+    }
 }
