@@ -81,7 +81,7 @@ class ClassicJiraApiClientTest {
         val method = ClassicJiraApiClient::class.java.getDeclaredMethod("getAuthHeader")
         method.isAccessible = true
         try {
-            return method.invoke(client) as String?
+            return method.invoke(client) as? String
         } catch (e: java.lang.reflect.InvocationTargetException) {
             throw e.cause ?: e
         }
