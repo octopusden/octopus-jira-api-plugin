@@ -7,7 +7,6 @@ import feign.Request
 import feign.jackson.JacksonDecoder
 import feign.jackson.JacksonEncoder
 import feign.slf4j.Slf4jLogger
-
 import java.util.Base64
 import org.octopusden.octopus.jira.api.client.JiraApiClient
 import org.octopusden.octopus.jira.api.client.JiraApiClientErrorDecoder
@@ -33,14 +32,13 @@ class ClassicJiraApiClient(
             .encoder(JacksonEncoder(objectMapper))
             .decoder(JacksonDecoder(objectMapper))
             .errorDecoder(JiraApiClientErrorDecoder(objectMapper)).requestInterceptor { requestTemplate ->
-                val authHeader = getAuthHeader()
-                requestTemplate.header("Authorization", authHeader)
+                getAuthHeader()?.let { requestTemplate.header("Authorization", it) }
             }.logger(Slf4jLogger(JiraApiClient::class.java)).logLevel(Logger.Level.BASIC)
             .target(JiraApiClient::class.java, parametersProvider.getApiUrl())
     }
 
-    private fun getAuthHeader(): String {
-        val authHeader = parametersProvider.getBearerToken()?.let { token ->
+    private fun getAuthHeader(): String? {
+        return parametersProvider.getBearerToken()?.let { token ->
             if (token.isNotBlank()) {
                 "Bearer $token"
             } else {
@@ -54,8 +52,7 @@ class ClassicJiraApiClient(
             } else {
                 null
             }
-        } ?: throw IllegalArgumentException("Bearer token or basic credentials must be provided")
-        return authHeader
+        }
     }
 
     companion object {

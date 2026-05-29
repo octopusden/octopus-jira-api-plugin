@@ -8,6 +8,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import org.octopusden.octopus.jira.api.config.JacksonMapper
+import kotlin.test.assertNull
 
 class ClassicJiraApiClientTest {
 
@@ -37,7 +38,7 @@ class ClassicJiraApiClientTest {
         every { parametersProvider.getBasicCredentials() } returns "user:pass"
         val client = ClassicJiraApiClient(parametersProvider, objectMapper)
 
-        val authHeader = invokeGetAuthHeader(client)
+        val authHeader = invokeGetAuthHeader(client)!!
 
         assertTrue(authHeader.startsWith("Basic "))
         val decoded = java.util.Base64.getDecoder().decode(authHeader.removePrefix("Basic "))
@@ -55,8 +56,8 @@ class ClassicJiraApiClientTest {
         assertEquals("Bearer bearer-token", authHeader)
     }
 
-    @Test(expected = IllegalArgumentException::class)
-    fun `getAuthHeader throws when both token and credentials are null`() {
+    @Test
+    fun `getAuthHeader when both token and credentials are null`() {
         // Stub to allow constructor to succeed (Feign builder doesn't trigger interceptor until first request),
         // then set both to null before calling getAuthHeader via reflection.
         every { parametersProvider.getBearerToken() } returns "temp"
@@ -64,23 +65,23 @@ class ClassicJiraApiClientTest {
         // Now override to null — the Feign interceptor won't fire until an actual HTTP call
         every { parametersProvider.getBearerToken() } returns null
         every { parametersProvider.getBasicCredentials() } returns null
-        invokeGetAuthHeader(client)
+        assertNull(invokeGetAuthHeader(client))
     }
 
-    @Test(expected = IllegalArgumentException::class)
-    fun `getAuthHeader throws when both are blank`() {
+    @Test
+    fun `getAuthHeader when both are blank`() {
         every { parametersProvider.getBearerToken() } returns "temp"
         val client = ClassicJiraApiClient(parametersProvider, objectMapper)
         every { parametersProvider.getBearerToken() } returns ""
         every { parametersProvider.getBasicCredentials() } returns ":"
-        invokeGetAuthHeader(client)
+        assertNull(invokeGetAuthHeader(client))
     }
 
-    private fun invokeGetAuthHeader(client: ClassicJiraApiClient): String {
+    private fun invokeGetAuthHeader(client: ClassicJiraApiClient): String? {
         val method = ClassicJiraApiClient::class.java.getDeclaredMethod("getAuthHeader")
         method.isAccessible = true
         try {
-            return method.invoke(client) as String
+            return method.invoke(client) as String?
         } catch (e: java.lang.reflect.InvocationTargetException) {
             throw e.cause ?: e
         }
