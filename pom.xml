@@ -53,13 +53,13 @@
         <atlassian-rest-common.version>6.1.2</atlassian-rest-common.version>
         <ao.version>1.5.0</ao.version>
 
-        <kotlin.version>1.9.23</kotlin.version>
+        <kotlin.version>2.3.0</kotlin.version>
         <kotlin.compiler.incremental>true</kotlin.compiler.incremental>
         <kotlin.compiler.jvmTarget>1.8</kotlin.compiler.jvmTarget>
 
         <octopus-jira-utils.version>2.0.18</octopus-jira-utils.version>
-        <jackson.version>2.9.2</jackson.version>
-        <feign.version>11.10</feign.version>
+        <jackson.version>2.15.2</jackson.version>
+        <feign.version>12.5</feign.version>
         <slf4j.version>1.6.4</slf4j.version>
 
         <maven.version>3.6.1</maven.version>
