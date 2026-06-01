@@ -7,7 +7,7 @@ import com.fasterxml.jackson.module.kotlin.KotlinModule
 class JacksonMapper : ObjectMapper() {
     init {
         configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
-        registerModule(KotlinModule())
+        registerModule(KotlinModule.Builder().build())
     }
 
     companion object {
