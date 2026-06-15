@@ -8,6 +8,7 @@ import com.atlassian.jira.issue.fields.CustomField;
 import com.atlassian.jira.issue.link.IssueLinkManager;
 import com.atlassian.jira.jql.builder.JqlQueryBuilder;
 import com.atlassian.jira.jql.builder.JqlClauseBuilder;
+import com.atlassian.jira.project.version.Version;
 import com.atlassian.jira.user.ApplicationUser;
 import com.atlassian.jira.web.bean.PagerFilter;
 import org.octopusden.octopus.jira.api.config.ApiSetting;
@@ -19,6 +20,10 @@ import org.octopusden.octopus.jira.api.dto.IPSRequest;
 import org.octopusden.octopus.jira.api.dto.IPSRequirement;
 import org.octopusden.octopus.jira.api.dto.IPSResponse;
 import org.octopusden.octopus.jira.api.dto.IssueBean;
+import org.octopusden.octopus.jira.config.ComponentRegistryService;
+import org.octopusden.octopus.jira.exception.JiraApplicationException;
+import org.octopusden.octopus.jira.model.JiraProjectVersion;
+import org.octopusden.octopus.releng.dto.JiraComponentVersion;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -41,6 +46,7 @@ public class IPSService {
     private static final String MANDATORY_UPDATE_TYPE = "Mandatory Update";
     private static final String TEST_DEVELOPMENT_TYPE = "Test Development";
     private static final String LINK_TYPE_IMPLEMENTS = "Implements";
+    private static final String NOT_FOUND = "NOT_FOUND";
     private static final String FIELD_PRODUCT = "Product";
     private static final String FIELD_IPS_RELEASE = "IPS Release";
     private static final String FIELD_LICENSE = "License";
@@ -52,6 +58,7 @@ public class IPSService {
     private final CustomFieldManager customFieldManager;
     private final SearchService searchService;
     private final ApiSettingsProvider settingsProvider;
+    private final ComponentRegistryService componentRegistryService;
 
     private final CustomField fieldProduct;
     private final CustomField fieldIpsRelease;
@@ -64,12 +71,14 @@ public class IPSService {
             IssueLinkManager issueLinkManager,
             CustomFieldManager customFieldManager,
             SearchService searchService,
-            ApiSettingsProvider settingsProvider
+            ApiSettingsProvider settingsProvider,
+            ComponentRegistryService componentRegistryService
     ) {
         this.issueLinkManager = issueLinkManager;
         this.customFieldManager = customFieldManager;
         this.searchService = searchService;
         this.settingsProvider = settingsProvider;
+        this.componentRegistryService = componentRegistryService;
 
         this.fieldProduct = firstOrThrow(customFieldManager.getCustomFieldObjectsByName(FIELD_PRODUCT), FIELD_PRODUCT);
         this.fieldIpsRelease = firstOrThrow(customFieldManager.getCustomFieldObjectsByName(FIELD_IPS_RELEASE), FIELD_IPS_RELEASE);
@@ -143,14 +152,29 @@ public class IPSService {
         // Build (componentName, version, issueBean) triples
         List<Object[]> triples = new ArrayList<>();
         for (Issue issue : linkedIssues) {
+            logger.debug("Processing {}", issue.getKey());
+
             IssueBean issueBean = toIssueBean(issue);
-            List<String> versionNames = issue.getFixVersions().stream().map(v -> v.getName()).collect(Collectors.toList());
-            List<String> versions = versionNames.isEmpty() ? Collections.singletonList("") : versionNames;
-            for (com.atlassian.jira.bc.project.component.ProjectComponent jiraComponent : issue.getComponents()) {
-                for (String version : versions) {
-                    triples.add(new Object[]{jiraComponent.getName(), version, issueBean});
-                }
+            Collection<Version> releaseVersions = new ArrayList<>(issue.getFixVersions());
+
+            for (Version version : releaseVersions) {
+                logger.debug("Checking release version " + issue.getKey() + ":" + version.getName());
+                JiraComponentVersion jiraComponentVersion = getJiraComponentVersion(issue, version);
+                triples.add(new Object[]{
+                        jiraComponentVersion.getComponentVersion().getComponentName(),
+                        version.getName(),
+                        issueBean
+                });
             }
+
+            if (releaseVersions.isEmpty()) {
+                triples.add(new Object[]{
+                        NOT_FOUND,
+                        NOT_FOUND,
+                        issueBean
+                });
+            }
+
         }
 
         // Group by component name
@@ -166,7 +190,6 @@ public class IPSService {
                     List<Object[]> pairs = entry.getValue();
                     List<String> fixVersions = pairs.stream()
                             .map(p -> (String) p[1])
-                            .filter(v -> !v.isEmpty())
                             .distinct()
                             .collect(Collectors.toList());
                     List<IssueBean> issues = pairs.stream()
@@ -253,7 +276,6 @@ public class IPSService {
         return value != null ? value.toString() : "";
     }
 
-    @SuppressWarnings("unchecked")
     private List<String> getCustomFieldValueAsStringList(CustomField field, Issue issue) {
         if (field == null) return Collections.emptyList();
         Object value = issue.getCustomFieldValue(field);
@@ -300,5 +322,14 @@ public class IPSService {
     private static CustomField firstOrNull(Collection<CustomField> fields) {
         if (fields == null || fields.isEmpty()) return null;
         return fields.iterator().next();
+    }
+
+    private JiraComponentVersion getJiraComponentVersion(Issue issue, Version version) {
+        JiraProjectVersion projectVersion = new JiraProjectVersion(
+                issue.getProjectObject().getKey(),
+                version.getName()
+        );
+        return componentRegistryService.getJiraComponentByProjectAndVersion(projectVersion)
+                .orElseThrow(() -> new JiraApplicationException("Unable to find " + projectVersion + " in Components Registry"));
     }
 }

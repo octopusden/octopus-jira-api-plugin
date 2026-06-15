@@ -104,6 +104,11 @@
             <version>${octopus-jira-utils.version}</version>
         </dependency>
 
+        <dependency>
+            <groupId>org.octopusden.octopus.jira</groupId>
+            <artifactId>components-registry</artifactId>
+        </dependency>
+
         <!--TEST DEPENDENCIES-->
         <dependency>
             <groupId>junit</groupId>
