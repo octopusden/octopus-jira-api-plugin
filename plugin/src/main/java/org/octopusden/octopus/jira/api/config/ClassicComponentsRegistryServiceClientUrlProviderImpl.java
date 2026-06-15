@@ -17,7 +17,11 @@ public class ClassicComponentsRegistryServiceClientUrlProviderImpl
     public String getApiUrl() {
         String url = settingsProvider.getString(ApiSetting.COMPONENTS_REGISTRY_URL);
         if (url == null || url.isEmpty()) {
-            throw new IllegalStateException("Components Registry URL is not configured. Please set 'components-registry-url' in plugin settings.");
+            throw new IllegalStateException(
+                    "Components Registry URL is not configured. Please set '" +
+                            ApiSetting.COMPONENTS_REGISTRY_URL.getKey() +
+                            "' in plugin settings."
+            );
         }
         return url;
     }
