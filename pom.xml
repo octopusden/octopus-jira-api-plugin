@@ -57,7 +57,7 @@
         <kotlin.compiler.incremental>true</kotlin.compiler.incremental>
         <kotlin.compiler.jvmTarget>1.8</kotlin.compiler.jvmTarget>
 
-        <octopus-jira-utils.version>2.0.18</octopus-jira-utils.version>
+        <octopus-jira-utils.version>2.0.21</octopus-jira-utils.version>
         <jackson.version>2.9.2</jackson.version>
         <feign.version>11.10</feign.version>
         <slf4j.version>1.6.4</slf4j.version>
@@ -121,6 +121,21 @@
                 <groupId>org.slf4j</groupId>
                 <artifactId>slf4j-api</artifactId>
                 <version>${slf4j.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.octopusden.octopus.jira</groupId>
+                <artifactId>components-registry</artifactId>
+                <version>${octopus-jira-utils.version}</version>
+                <exclusions>
+                    <exclusion>
+                        <groupId>org.slf4j</groupId>
+                        <artifactId>slf4j-api</artifactId>
+                    </exclusion>
+                    <exclusion>
+                        <groupId>com.fasterxml.jackson.core</groupId>
+                        <artifactId>*</artifactId>
+                    </exclusion>
+                </exclusions>
             </dependency>
         </dependencies>
     </dependencyManagement>

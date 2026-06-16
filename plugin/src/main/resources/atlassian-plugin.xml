@@ -48,6 +48,26 @@
     <component key="octopus-api-ips-service"
                class="org.octopusden.octopus.jira.api.service.IPSService"/>
 
+    <!--  Components Registry Client  -->
+    <component key="component-registry-service-impl"
+               class="org.octopusden.octopus.jira.config.ComponentRegistryServiceImpl">
+        <interface>org.octopusden.octopus.jira.config.ComponentRegistryService</interface>
+    </component>
+
+    <component key="components-registry-service-client"
+               class="org.octopusden.octopus.components.registry.client.impl.ClassicComponentsRegistryServiceClient"
+               public="true">
+        <interface>org.octopusden.octopus.components.registry.client.ComponentsRegistryServiceClient</interface>
+    </component>
+
+    <component key="components-registry-service-client-url-provider"
+               class="org.octopusden.octopus.jira.api.config.ClassicComponentsRegistryServiceClientUrlProviderImpl"
+               public="true">
+        <interface>
+            org.octopusden.octopus.components.registry.client.impl.ClassicComponentsRegistryServiceClientUrlProvider
+        </interface>
+    </component>
+
     <!-- Admin UI -->
     <web-section key="octopus_api_section" location="admin_plugins_menu" name="Octopus API" weight="200">
         <label key="Octopus API" />
