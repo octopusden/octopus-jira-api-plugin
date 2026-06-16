@@ -61,7 +61,6 @@
         <jackson.version>2.9.2</jackson.version>
         <feign.version>11.10</feign.version>
         <slf4j.version>1.6.4</slf4j.version>
-        <octopus-components-registry-service.version>2.0.87</octopus-components-registry-service.version>
 
         <maven.version>3.6.1</maven.version>
         <maven.compiler.source>1.8</maven.compiler.source>

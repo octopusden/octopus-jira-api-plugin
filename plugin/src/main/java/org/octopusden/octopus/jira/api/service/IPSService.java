@@ -158,7 +158,7 @@ public class IPSService {
             Collection<Version> releaseVersions = new ArrayList<>(issue.getFixVersions());
 
             for (Version version : releaseVersions) {
-                logger.debug("Checking release version " + issue.getKey() + ":" + version.getName());
+                logger.debug("Checking release version {}:{}", issue.getKey(), version.getName());
                 JiraComponentVersion jiraComponentVersion = getJiraComponentVersion(issue, version);
                 triples.add(new Object[]{
                         jiraComponentVersion.getComponentVersion().getComponentName(),
