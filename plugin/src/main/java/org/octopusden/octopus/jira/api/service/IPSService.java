@@ -177,24 +177,33 @@ public class IPSService {
 
         }
 
-        // Group by component name
-        Map<String, List<Object[]>> byComponent = new LinkedHashMap<>();
+        // Group triples by issue key, preserving first-seen order (an issue may span
+        // multiple components via its fix versions)
+        Map<String, List<Object[]>> byIssue = new LinkedHashMap<>();
         for (Object[] triple : triples) {
-            String compName = (String) triple[0];
-            byComponent.computeIfAbsent(compName, k -> new ArrayList<>()).add(triple);
+            IssueBean bean = (IssueBean) triple[2];
+            byIssue.computeIfAbsent(bean.getKey(), k -> new ArrayList<>()).add(triple);
         }
 
-        List<DevComponent> components = byComponent.entrySet().stream()
+        // Emit each issue once, under its first-seen component, merging all its fix versions
+        Map<String, List<String>> fixVersionsByComponent = new LinkedHashMap<>();
+        Map<String, List<IssueBean>> issuesByComponent = new LinkedHashMap<>();
+        for (List<Object[]> issueTriples : byIssue.values()) {
+            String compName = (String) issueTriples.get(0)[0];
+            IssueBean issueBean = (IssueBean) issueTriples.get(0)[2];
+            List<String> fixVersions = issueTriples.stream()
+                    .map(t -> (String) t[1])
+                    .distinct()
+                    .collect(Collectors.toList());
+            fixVersionsByComponent.computeIfAbsent(compName, k -> new ArrayList<>()).addAll(fixVersions);
+            issuesByComponent.computeIfAbsent(compName, k -> new ArrayList<>()).add(issueBean);
+        }
+
+        List<DevComponent> components = fixVersionsByComponent.entrySet().stream()
                 .map(entry -> {
                     String compName = entry.getKey();
-                    List<Object[]> pairs = entry.getValue();
-                    List<String> fixVersions = pairs.stream()
-                            .map(p -> (String) p[1])
-                            .distinct()
-                            .collect(Collectors.toList());
-                    List<IssueBean> issues = pairs.stream()
-                            .map(p -> (IssueBean) p[2])
-                            .collect(Collectors.toList());
+                    List<String> fixVersions = entry.getValue().stream().distinct().collect(Collectors.toList());
+                    List<IssueBean> issues = issuesByComponent.get(compName);
                     return new DevComponent(compName, fixVersions, issues);
                 })
                 .collect(Collectors.toList());
