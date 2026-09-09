@@ -30,6 +30,7 @@ import org.slf4j.LoggerFactory;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.Date;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -125,6 +126,7 @@ public class IPSService {
                             testing
                     );
                 })
+                .sorted(Comparator.comparing(IPSRequirement::getName))
                 .collect(Collectors.toList());
 
         return new IPSResponse(
@@ -148,6 +150,10 @@ public class IPSService {
                     .filter(i -> MANDATORY_UPDATE_TYPE.equals(getIssueTypeName(i)))
                     .collect(Collectors.toList());
         }
+
+        linkedIssues = linkedIssues.stream()
+                .filter(i -> !isRejected(i))
+                .collect(Collectors.toList());
 
         // Build (componentName, version, issueBean) triples
         List<Object[]> triples = new ArrayList<>();
@@ -203,9 +209,12 @@ public class IPSService {
                 .map(entry -> {
                     String compName = entry.getKey();
                     List<String> fixVersions = entry.getValue().stream().distinct().collect(Collectors.toList());
-                    List<IssueBean> issues = issuesByComponent.get(compName);
+                    List<IssueBean> issues = issuesByComponent.get(compName).stream()
+                            .sorted(Comparator.comparing(IssueBean::getKey))
+                            .collect(Collectors.toList());
                     return new DevComponent(compName, fixVersions, issues);
                 })
+                .sorted(Comparator.comparing(DevComponent::getName))
                 .collect(Collectors.toList());
 
         return new IPSReqDev(
@@ -226,7 +235,9 @@ public class IPSService {
 
         List<IssueBean> cases = getInwardImplementsIssues(qaSubtask, serviceUser).stream()
                 .filter(i -> TEST_DEVELOPMENT_TYPE.equals(getIssueTypeName(i)))
+                .filter(i -> !isRejected(i))
                 .map(this::toIssueBean)
+                .sorted(Comparator.comparing(IssueBean::getKey))
                 .collect(Collectors.toList());
 
         return new IPSReqQA(
@@ -292,6 +303,10 @@ public class IPSService {
             return ((List<?>) value).stream().map(Object::toString).collect(Collectors.toList());
         }
         return Collections.emptyList();
+    }
+
+    private boolean isRejected(Issue issue) {
+        return issue.getResolution() != null && "Rejected".equals(issue.getResolution().getName());
     }
 
     private IssueBean toIssueBean(Issue issue) {

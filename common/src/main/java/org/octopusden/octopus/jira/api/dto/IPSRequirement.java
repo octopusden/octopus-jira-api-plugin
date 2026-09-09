@@ -2,10 +2,12 @@ package org.octopusden.octopus.jira.api.dto;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonPropertyOrder;
 
 import java.util.Collections;
 import java.util.List;
 
+@JsonPropertyOrder({"key", "name", "status", "labels", "region", "license", "ipsCode", "testing", "development"})
 public class IPSRequirement {
 
     private final String key;

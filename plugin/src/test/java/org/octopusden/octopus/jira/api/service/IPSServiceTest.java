@@ -614,6 +614,30 @@ public class IPSServiceTest {
                 new HashSet<>(components.get(0).getFixVersions()));
     }
 
+    @Test
+    public void testGenerateExcludesRejectedIssuesFromDevelopment() throws Exception {
+        Issue ipsRelease = createIssue("IPS-1080");
+        Issue requirement = createIssue("REQ-93");
+        Issue devSubtask = createIssue("DEV-9", "IPS Req Dev");
+        Issue rejected = createIssue("MU-9", "Summary", "Mandatory Update", "Open",
+                "High", "Rejected", Collections.emptyList(), Collections.emptyList(),
+                Collections.singletonList("v1.0"), Collections.singletonList("test-component"));
+        Issue accepted = createIssue("MU-10", "Summary", "Mandatory Update", "Open",
+                "High", "Done", Collections.emptyList(), Collections.emptyList(),
+                Collections.singletonList("v1.0"), Collections.singletonList("test-component"));
+        stubSearchReturns(ipsRelease);
+        stubInwardLinks(ipsRelease, Collections.singletonList(requirement));
+        stubSubtasks(requirement, Collections.singletonList(devSubtask));
+        stubInwardLinks(devSubtask, Arrays.asList(rejected, accepted));
+        stubIssueProject(rejected);
+        stubIssueProject(accepted);
+
+        List<IssueBean> issues = service.generate(createRequest())
+                .getRequirements().get(0).getDevelopment().get(0).getComponents().get(0).getIssues();
+        assertEquals(1, issues.size());
+        assertEquals("MU-10", issues.get(0).getKey());
+    }
+
     // ==================== H. QA Subtasks ====================
 
     @Test
@@ -637,6 +661,30 @@ public class IPSServiceTest {
         assertEquals("To Do", qa.get(0).getStatus());
         assertEquals(1, qa.get(0).getCases().size());
         assertEquals("TD-1", qa.get(0).getCases().get(0).getKey());
+    }
+
+    @Test
+    public void testGenerateExcludesRejectedIssuesFromTesting() throws Exception {
+        Issue ipsRelease = createIssue("IPS-1350");
+        Issue requirement = createIssue("REQ-135");
+        Issue qaSubtask = createIssue("QA-2", "QA work", "IPS Req QA", "To Do",
+                "High", "Done", Collections.emptyList(), Collections.emptyList(),
+                Collections.emptyList(), Collections.emptyList());
+        Issue rejected = createIssue("TD-2", "Summary", "Test Development", "Open",
+                "High", "Rejected", Collections.emptyList(), Collections.emptyList(),
+                Collections.emptyList(), Collections.emptyList());
+        Issue accepted = createIssue("TD-3", "Summary", "Test Development", "Open",
+                "High", "Done", Collections.emptyList(), Collections.emptyList(),
+                Collections.emptyList(), Collections.emptyList());
+        stubSearchReturns(ipsRelease);
+        stubInwardLinks(ipsRelease, Collections.singletonList(requirement));
+        stubSubtasks(requirement, Collections.singletonList(qaSubtask));
+        stubInwardLinks(qaSubtask, Arrays.asList(rejected, accepted));
+
+        List<IssueBean> cases = service.generate(createRequest())
+                .getRequirements().get(0).getTesting().get(0).getCases();
+        assertEquals(1, cases.size());
+        assertEquals("TD-3", cases.get(0).getKey());
     }
 
     // ==================== L. System Filtering ====================
