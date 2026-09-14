@@ -54,6 +54,7 @@ public class IPSService {
     private static final String FIELD_IPS_REQUIREMENT_REGION = "IPS Requirement Region";
     private static final String FIELD_IPS_CODE = "IPS Code";
     private static final String FIELD_SYSTEM = "System";
+    private static final String RESOLUTION_REJECTED = "Rejected";
 
     private final IssueLinkManager issueLinkManager;
     private final CustomFieldManager customFieldManager;
@@ -211,7 +212,7 @@ public class IPSService {
                     String compName = entry.getKey();
                     List<String> fixVersions = entry.getValue().stream().distinct().collect(Collectors.toList());
                     List<IssueBean> issues = issuesByComponent.get(compName).stream()
-                            .sorted(Comparator.comparing(IssueBean::getKey))
+                            .sorted( BY_ISSUE_KEY )
                             .collect(Collectors.toList());
                     return new DevComponent(compName, fixVersions, issues);
                 })
@@ -248,6 +249,30 @@ public class IPSService {
                 system,
                 cases
         );
+    }
+
+    private static final Comparator<IssueBean> BY_ISSUE_KEY =
+            (a, b) -> compareIssueKeys(a.getKey(), b.getKey());
+
+    private static int compareIssueKeys(String left, String right) {
+        int leftDash = left.lastIndexOf('-');
+        int rightDash = right.lastIndexOf('-');
+        String leftPrefix = leftDash >= 0 ? left.substring(0, leftDash) : left;
+        String rightPrefix = rightDash >= 0 ? right.substring(0, rightDash) : right;
+        int prefixCompare = leftPrefix.compareTo(rightPrefix);
+        if (prefixCompare != 0) {
+            return prefixCompare;
+        }
+        return Integer.compare(issueNumber(left, leftDash), issueNumber(right, rightDash));
+    }
+
+    private static int issueNumber(String key, int dash) {
+        if (dash < 0) return Integer.MAX_VALUE;
+        try {
+            return Integer.parseInt(key.substring(dash + 1));
+        } catch (NumberFormatException e) {
+            return Integer.MAX_VALUE;
+        }
     }
 
     private boolean emptyOrContains(List<String> list, String value) {
@@ -307,7 +332,7 @@ public class IPSService {
     }
 
     private boolean isRejected(Issue issue) {
-        return issue.getResolution() != null && "Rejected".equals(issue.getResolution().getName());
+        return issue.getResolution() != null && RESOLUTION_REJECTED.equals(issue.getResolution().getName());
     }
 
     private IssueBean toIssueBean(Issue issue) {
