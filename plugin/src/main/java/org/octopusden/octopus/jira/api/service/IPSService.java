@@ -119,6 +119,7 @@ public class IPSService {
                             requirement.getSummary() != null ? requirement.getSummary() : "",
                             requirement.getStatus().getName(),
                             requirement.getLabels().stream().map(l -> l.getLabel()).collect(Collectors.toList()),
+                            null,
                             getCustomFieldStringValue(fieldIpsRequirementRegion, requirement),
                             getCustomFieldStringValue(fieldLicense, requirement),
                             getCustomFieldStringValue(fieldIpsCode, requirement),
