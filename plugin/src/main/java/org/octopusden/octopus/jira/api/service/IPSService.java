@@ -205,13 +205,23 @@ public class IPSService {
                             .distinct()
                             .collect(Collectors.toList());
 
-                    // Deduplicate issues within the component, preserving first-seen order
+                    // Deduplicate issues within the component, preserving first-seen order,
+                    // and keep only the versions the issue has in this component
                     Map<String, IssueBean> issuesByKey = new LinkedHashMap<>();
+                    Map<String, List<String>> versionsByIssue = new LinkedHashMap<>();
                     for (Object[] triple : componentTriples) {
+                        String version = (String) triple[1];
                         IssueBean bean = (IssueBean) triple[2];
                         issuesByKey.putIfAbsent(bean.getKey(), bean);
+                        if (!NOT_FOUND.equals(version)) {
+                            versionsByIssue.computeIfAbsent(bean.getKey(), k -> new ArrayList<>()).add(version);
+                        }
                     }
                     List<IssueBean> issues = issuesByKey.values().stream()
+                            .map(bean -> bean.withFixVersions(
+                                    versionsByIssue.getOrDefault(bean.getKey(), Collections.emptyList()).stream()
+                                            .distinct()
+                                            .collect(Collectors.toList())))
                             .sorted(BY_ISSUE_KEY)
                             .collect(Collectors.toList());
 

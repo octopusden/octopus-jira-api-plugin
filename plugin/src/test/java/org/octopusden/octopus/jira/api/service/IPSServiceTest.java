@@ -577,6 +577,8 @@ public class IPSServiceTest {
         assertEquals("MU-7", components.get(0).getIssues().get(0).getKey());
         assertEquals(new HashSet<>(Arrays.asList("v1.0", "v2.0")),
                 new HashSet<>(components.get(0).getFixVersions()));
+        assertEquals(new HashSet<>(Arrays.asList("v1.0", "v2.0")),
+                new HashSet<>(components.get(0).getIssues().get(0).getFixVersions()));
     }
 
     @Test
@@ -612,9 +614,13 @@ public class IPSServiceTest {
         assertEquals(Collections.singletonList("v1.0"), components.get(0).getFixVersions());
         assertEquals(Collections.singletonList("v2.0"), components.get(1).getFixVersions());
         assertEquals(1, components.get(0).getIssues().size());
-        assertEquals(1, components.get(1).getIssues().size());
         assertEquals("MU-8", components.get(0).getIssues().get(0).getKey());
+        assertEquals(Collections.singletonList("v1.0"),
+                components.get(0).getIssues().get(0).getFixVersions());
+        assertEquals(1, components.get(1).getIssues().size());
         assertEquals("MU-8", components.get(1).getIssues().get(0).getKey());
+        assertEquals(Collections.singletonList("v2.0"),
+                components.get(1).getIssues().get(0).getFixVersions());
     }
 
     @Test
