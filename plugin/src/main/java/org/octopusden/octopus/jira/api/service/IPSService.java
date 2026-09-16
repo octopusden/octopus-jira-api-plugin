@@ -30,6 +30,7 @@ import org.slf4j.LoggerFactory;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.Date;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -53,6 +54,7 @@ public class IPSService {
     private static final String FIELD_IPS_REQUIREMENT_REGION = "IPS Requirement Region";
     private static final String FIELD_IPS_CODE = "IPS Code";
     private static final String FIELD_SYSTEM = "System";
+    private static final String RESOLUTION_REJECTED = "Rejected";
 
     private final IssueLinkManager issueLinkManager;
     private final CustomFieldManager customFieldManager;
@@ -98,17 +100,20 @@ public class IPSService {
 
         List<IPSRequirement> requirements = getInwardImplementsIssues(ipsReleaseIssue, serviceUser).stream()
                 .filter(i -> "IPS Requirement".equals(getIssueTypeName(i)))
+                .filter(i -> !isRejected(i))
                 .map(requirement -> {
                     logger.debug("Processing IPS Requirement {}", requirement.getKey());
 
                     List<IPSReqDev> development = requirement.getSubTaskObjects().stream()
                             .filter(i -> IPS_REQ_DEV_TYPE.equals(getIssueTypeName(i)))
+                            .filter(i -> !isRejected(i))
                             .map(devSubtask -> buildDevSubtask(devSubtask, request, serviceUser))
                             .filter(d -> d != null)
                             .collect(Collectors.toList());
 
                     List<IPSReqQA> testing = requirement.getSubTaskObjects().stream()
                             .filter(i -> IPS_REQ_QA_TYPE.equals(getIssueTypeName(i)))
+                            .filter(i -> !isRejected(i))
                             .map(qaSubtask -> buildQASubtask(qaSubtask, request, serviceUser))
                             .filter(q -> q != null)
                             .collect(Collectors.toList());
@@ -118,6 +123,7 @@ public class IPSService {
                             requirement.getSummary() != null ? requirement.getSummary() : "",
                             requirement.getStatus().getName(),
                             requirement.getLabels().stream().map(l -> l.getLabel()).collect(Collectors.toList()),
+                            null,
                             getCustomFieldStringValue(fieldIpsRequirementRegion, requirement),
                             getCustomFieldStringValue(fieldLicense, requirement),
                             getCustomFieldStringValue(fieldIpsCode, requirement),
@@ -125,6 +131,7 @@ public class IPSService {
                             testing
                     );
                 })
+                .sorted(Comparator.comparing(IPSRequirement::getName))
                 .collect(Collectors.toList());
 
         return new IPSResponse(
@@ -148,6 +155,10 @@ public class IPSService {
                     .filter(i -> MANDATORY_UPDATE_TYPE.equals(getIssueTypeName(i)))
                     .collect(Collectors.toList());
         }
+
+        linkedIssues = linkedIssues.stream()
+                .filter(i -> !isRejected(i))
+                .collect(Collectors.toList());
 
         // Build (componentName, version, issueBean) triples
         List<Object[]> triples = new ArrayList<>();
@@ -177,7 +188,7 @@ public class IPSService {
 
         }
 
-        // Group by component name
+        // Group triples by component, preserving first-seen order
         Map<String, List<Object[]>> byComponent = new LinkedHashMap<>();
         for (Object[] triple : triples) {
             String compName = (String) triple[0];
@@ -187,16 +198,37 @@ public class IPSService {
         List<DevComponent> components = byComponent.entrySet().stream()
                 .map(entry -> {
                     String compName = entry.getKey();
-                    List<Object[]> pairs = entry.getValue();
-                    List<String> fixVersions = pairs.stream()
-                            .map(p -> (String) p[1])
+                    List<Object[]> componentTriples = entry.getValue();
+
+                    // Only fix versions that belong to this component
+                    List<String> fixVersions = componentTriples.stream()
+                            .map(t -> (String) t[1])
                             .distinct()
                             .collect(Collectors.toList());
-                    List<IssueBean> issues = pairs.stream()
-                            .map(p -> (IssueBean) p[2])
+
+                    // Deduplicate issues within the component, preserving first-seen order,
+                    // and keep only the versions the issue has in this component
+                    Map<String, IssueBean> issuesByKey = new LinkedHashMap<>();
+                    Map<String, List<String>> versionsByIssue = new LinkedHashMap<>();
+                    for (Object[] triple : componentTriples) {
+                        String version = (String) triple[1];
+                        IssueBean bean = (IssueBean) triple[2];
+                        issuesByKey.putIfAbsent(bean.getKey(), bean);
+                        if (!NOT_FOUND.equals(version)) {
+                            versionsByIssue.computeIfAbsent(bean.getKey(), k -> new ArrayList<>()).add(version);
+                        }
+                    }
+                    List<IssueBean> issues = issuesByKey.values().stream()
+                            .map(bean -> bean.withFixVersions(
+                                    versionsByIssue.getOrDefault(bean.getKey(), Collections.emptyList()).stream()
+                                            .distinct()
+                                            .collect(Collectors.toList())))
+                            .sorted(BY_ISSUE_KEY)
                             .collect(Collectors.toList());
+
                     return new DevComponent(compName, fixVersions, issues);
                 })
+                .sorted(Comparator.comparing(DevComponent::getName))
                 .collect(Collectors.toList());
 
         return new IPSReqDev(
@@ -217,7 +249,9 @@ public class IPSService {
 
         List<IssueBean> cases = getInwardImplementsIssues(qaSubtask, serviceUser).stream()
                 .filter(i -> TEST_DEVELOPMENT_TYPE.equals(getIssueTypeName(i)))
+                .filter(i -> !isRejected(i))
                 .map(this::toIssueBean)
+                .sorted(BY_ISSUE_KEY)
                 .collect(Collectors.toList());
 
         return new IPSReqQA(
@@ -227,6 +261,30 @@ public class IPSService {
                 system,
                 cases
         );
+    }
+
+    private static final Comparator<IssueBean> BY_ISSUE_KEY =
+            (a, b) -> compareIssueKeys(a.getKey(), b.getKey());
+
+    private static int compareIssueKeys(String left, String right) {
+        int leftDash = left.lastIndexOf('-');
+        int rightDash = right.lastIndexOf('-');
+        String leftPrefix = leftDash >= 0 ? left.substring(0, leftDash) : left;
+        String rightPrefix = rightDash >= 0 ? right.substring(0, rightDash) : right;
+        int prefixCompare = leftPrefix.compareTo(rightPrefix);
+        if (prefixCompare != 0) {
+            return prefixCompare;
+        }
+        return Integer.compare(issueNumber(left, leftDash), issueNumber(right, rightDash));
+    }
+
+    private static int issueNumber(String key, int dash) {
+        if (dash < 0) return Integer.MAX_VALUE;
+        try {
+            return Integer.parseInt(key.substring(dash + 1));
+        } catch (NumberFormatException e) {
+            return Integer.MAX_VALUE;
+        }
     }
 
     private boolean emptyOrContains(List<String> list, String value) {
@@ -283,6 +341,10 @@ public class IPSService {
             return ((List<?>) value).stream().map(Object::toString).collect(Collectors.toList());
         }
         return Collections.emptyList();
+    }
+
+    private boolean isRejected(Issue issue) {
+        return issue.getResolution() != null && RESOLUTION_REJECTED.equals(issue.getResolution().getName());
     }
 
     private IssueBean toIssueBean(Issue issue) {

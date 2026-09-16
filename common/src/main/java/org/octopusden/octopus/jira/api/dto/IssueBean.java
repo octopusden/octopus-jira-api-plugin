@@ -3,6 +3,7 @@ package org.octopusden.octopus.jira.api.dto;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
+import java.util.Collections;
 import java.util.List;
 
 public class IssueBean {
@@ -38,6 +39,11 @@ public class IssueBean {
         this.fixVersions = fixVersions;
         this.components = components;
         this.resolution = resolution;
+    }
+
+    public IssueBean withFixVersions(List<String> fixVersions) {
+        return new IssueBean(key, summary, issueType, status, priority, labels,
+                fixVersions != null ? fixVersions : Collections.emptyList(), components, resolution);
     }
 
     public String getKey() {
