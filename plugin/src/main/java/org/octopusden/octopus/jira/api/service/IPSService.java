@@ -100,6 +100,7 @@ public class IPSService {
 
         List<IPSRequirement> requirements = getInwardImplementsIssues(ipsReleaseIssue, serviceUser).stream()
                 .filter(i -> "IPS Requirement".equals(getIssueTypeName(i)))
+                .filter(i -> !isRejected(i))
                 .map(requirement -> {
                     logger.debug("Processing IPS Requirement {}", requirement.getKey());
 
