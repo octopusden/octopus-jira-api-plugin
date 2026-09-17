@@ -238,7 +238,7 @@ public class IPSService {
                     return new DevComponent(compName, fixVersions, issues);
                 })
                 .sorted(Comparator.comparing((DevComponent c) -> NOT_FOUND.equals(c.getName()))
-                        .thenComparing(DevComponent::getName))
+                        .thenComparing(DevComponent::getName, String.CASE_INSENSITIVE_ORDER)
                 .collect(Collectors.toList());
 
         return new IPSReqDev(
