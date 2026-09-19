@@ -1,9 +1,6 @@
 package org.octopusden.octopus.jira.api.exception;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.octopusden.octopus.jira.api.exception.BadRequestException;
-import org.octopusden.octopus.jira.api.exception.FailedGenerateIPSException;
-import org.octopusden.octopus.jira.api.exception.JiraApiException;
 
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
