@@ -10,6 +10,16 @@
         <relativePath>../pom.xml</relativePath>
     </parent>
 
+    <properties>
+        <!-- 12, over the classes this module compiles. A ratchet, not an endorsement: it stops the
+             count growing. (3011 unscoped; 166 with an org/octopusden/** filter, of which 154 were
+             unpacked dependencies - see the build section.) -->
+        <octopus.quality.maxViolations.spotbugs>12</octopus.quality.maxViolations.spotbugs>
+        <!-- Measured 0.6348 over this module's own packages. The 0.13 this used to say was an artefact
+             of counting 2044 lines of unpacked dependencies as if they were ours. -->
+        <octopus.coverage.minimumLine>0.63</octopus.coverage.minimumLine>
+    </properties>
+
     <artifactId>octopus-jira-api-plugin</artifactId>
     <name>Octopus JIRA API Plugin</name>
     <description>Octopus JIRA API Plugin</description>
@@ -124,6 +134,46 @@
 
     <build>
         <plugins>
+            <!-- jira:copy-bundled-dependencies EXTRACTS every bundled dependency into target/classes at
+                 process-test-classes, before the gates run at prepare-package. That is 3030 classes where
+                 this module compiles 9: kotlin-reflect, Jackson, Commons and Feign, and also octopusden
+                 artifacts - releng-lib, versions-api, components-registry, jira-utils - which an
+                 org/octopusden/** filter does NOT exclude. JaCoCo cannot build a report over the whole
+                 thing at all ("Can't add different class with same name").
+
+                 So both analysers are scoped to the packages this module actually compiles into. Anything
+                 broader makes the thresholds a function of the dependency tree: with org/octopusden/**,
+                 154 of 166 SpotBugs findings and 2044 of 2381 covered-or-missed lines came from unpacked
+                 dependencies, so upgrading a library moved the numbers without a line of this module
+                 changing.
+
+                 Not airtight, and deliberately so rather than by oversight: api/config and api/exception
+                 also receive four classes from the sibling `common` module (JacksonMapper and three
+                 exceptions). Excluding those by name would drift the moment `common` gains a class. They
+                 are versioned with this repository rather than resolved from outside it, which is the
+                 property that matters here - a dependency upgrade can no longer move these numbers. -->
+            <plugin>
+                <groupId>org.jacoco</groupId>
+                <artifactId>jacoco-maven-plugin</artifactId>
+                <configuration>
+                    <includes>
+                        <include>org/octopusden/octopus/jira/api/config/**</include>
+                        <include>org/octopusden/octopus/jira/api/exception/**</include>
+                        <include>org/octopusden/octopus/jira/api/rest/**</include>
+                        <include>org/octopusden/octopus/jira/api/service/**</include>
+                        <include>org/octopusden/octopus/jira/api/ui/**</include>
+                    </includes>
+                </configuration>
+            </plugin>
+            <!-- Plugin level, not execution level: spotbugs:check forks spotbugs:spotbugs, and the fork
+                 does not read the execution's configuration. -->
+            <plugin>
+                <groupId>com.github.spotbugs</groupId>
+                <artifactId>spotbugs-maven-plugin</artifactId>
+                <configuration>
+                    <onlyAnalyze>org.octopusden.octopus.jira.api.config.-,org.octopusden.octopus.jira.api.exception.-,org.octopusden.octopus.jira.api.rest.-,org.octopusden.octopus.jira.api.service.-,org.octopusden.octopus.jira.api.ui.-</onlyAnalyze>
+                </configuration>
+            </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>

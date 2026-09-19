@@ -31,7 +31,7 @@ public class JiraApiClientErrorDecoder extends ErrorDecoder.Default {
         if (response.body() != null) {
             try (InputStream inputStream = response.body().asInputStream()) {
                 responseBody = new String(readAllBytes(inputStream), StandardCharsets.UTF_8);
-            } catch (IOException e) {
+            } catch (IOException ignored) {
                 // fall through to default
             }
         }
@@ -46,7 +46,7 @@ public class JiraApiClientErrorDecoder extends ErrorDecoder.Default {
                 } else {
                     return new RuntimeException(error.getMessage());
                 }
-            } catch (IOException e) {
+            } catch (IOException ignored) {
                 // fall through to default
             }
         }

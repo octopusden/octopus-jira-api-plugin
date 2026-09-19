@@ -78,7 +78,6 @@ public class IPSServiceTest {
 
     private UserManager mockUserManager;
     private ApplicationUser mockServiceUser;
-    private Issue mockIssue;
 
     private CustomField mockProductField;
     private CustomField mockIpsReleaseField;
