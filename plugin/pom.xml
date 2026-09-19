@@ -11,14 +11,13 @@
     </parent>
 
     <properties>
-        <!-- 168 after restricting SpotBugs to this project's packages (see the build section);
-             it was 3011 over the dependencies the Atlassian build unpacks into target/classes.
-             Mostly EI_EXPOSE_REP/EI_EXPOSE_REP2; the handful worth attention (NP_NONNULL_RETURN_VIOLATION,
-             NP_NULL_ON_SOME_PATH, BC_BAD_CAST_TO_ABSTRACT_COLLECTION) are pre-existing and out of scope
-             for a parent bump. A ratchet, not an endorsement: it stops the count growing. -->
-        <octopus.quality.maxViolations.spotbugs>166</octopus.quality.maxViolations.spotbugs>
-        <!-- Measured 0.1373. Low, and honest about it - the floor stops it falling further. -->
-        <octopus.coverage.minimumLine>0.13</octopus.coverage.minimumLine>
+        <!-- 12, over the classes this module compiles. A ratchet, not an endorsement: it stops the
+             count growing. (3011 unscoped; 166 with an org/octopusden/** filter, of which 154 were
+             unpacked dependencies - see the build section.) -->
+        <octopus.quality.maxViolations.spotbugs>12</octopus.quality.maxViolations.spotbugs>
+        <!-- Measured 0.6348 over this module's own packages. The 0.13 this used to say was an artefact
+             of counting 2044 lines of unpacked dependencies as if they were ours. -->
+        <octopus.coverage.minimumLine>0.63</octopus.coverage.minimumLine>
     </properties>
 
     <artifactId>octopus-jira-api-plugin</artifactId>
@@ -135,18 +134,34 @@
 
     <build>
         <plugins>
-            <!-- The Atlassian plugin build unpacks its dependencies into target/classes. Of the 3030
-                 classes SpotBugs found there, 168 are ours - the rest are kotlin-reflect, Jackson, Apache
-                 Commons and Feign, some of them multi-release duplicates under META-INF/versions.
-                 JaCoCo cannot build a report over that at all ("Can't add different class with same
-                 name"), and SpotBugs reports 3011 findings against vendored code nobody here can fix.
-                 Both analysers are pointed at this project's own packages. -->
+            <!-- jira:copy-bundled-dependencies EXTRACTS every bundled dependency into target/classes at
+                 process-test-classes, before the gates run at prepare-package. That is 3030 classes where
+                 this module compiles 9: kotlin-reflect, Jackson, Commons and Feign, and also octopusden
+                 artifacts - releng-lib, versions-api, components-registry, jira-utils - which an
+                 org/octopusden/** filter does NOT exclude. JaCoCo cannot build a report over the whole
+                 thing at all ("Can't add different class with same name").
+
+                 So both analysers are scoped to the packages this module actually compiles into. Anything
+                 broader makes the thresholds a function of the dependency tree: with org/octopusden/**,
+                 154 of 166 SpotBugs findings and 2044 of 2381 covered-or-missed lines came from unpacked
+                 dependencies, so upgrading a library moved the numbers without a line of this module
+                 changing.
+
+                 Not airtight, and deliberately so rather than by oversight: api/config and api/exception
+                 also receive four classes from the sibling `common` module (JacksonMapper and three
+                 exceptions). Excluding those by name would drift the moment `common` gains a class. They
+                 are versioned with this repository rather than resolved from outside it, which is the
+                 property that matters here - a dependency upgrade can no longer move these numbers. -->
             <plugin>
                 <groupId>org.jacoco</groupId>
                 <artifactId>jacoco-maven-plugin</artifactId>
                 <configuration>
                     <includes>
-                        <include>org/octopusden/**</include>
+                        <include>org/octopusden/octopus/jira/api/config/**</include>
+                        <include>org/octopusden/octopus/jira/api/exception/**</include>
+                        <include>org/octopusden/octopus/jira/api/rest/**</include>
+                        <include>org/octopusden/octopus/jira/api/service/**</include>
+                        <include>org/octopusden/octopus/jira/api/ui/**</include>
                     </includes>
                 </configuration>
             </plugin>
@@ -156,7 +171,7 @@
                 <groupId>com.github.spotbugs</groupId>
                 <artifactId>spotbugs-maven-plugin</artifactId>
                 <configuration>
-                    <onlyAnalyze>org.octopusden.-</onlyAnalyze>
+                    <onlyAnalyze>org.octopusden.octopus.jira.api.config.-,org.octopusden.octopus.jira.api.exception.-,org.octopusden.octopus.jira.api.rest.-,org.octopusden.octopus.jira.api.service.-,org.octopusden.octopus.jira.api.ui.-</onlyAnalyze>
                 </configuration>
             </plugin>
             <plugin>
