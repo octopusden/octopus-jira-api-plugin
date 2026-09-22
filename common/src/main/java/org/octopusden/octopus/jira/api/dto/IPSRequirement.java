@@ -4,7 +4,6 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonPropertyOrder;
 
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
@@ -39,33 +38,12 @@ public class IPSRequirement {
         this.name = name;
         this.status = status;
         this.labels = labels != null ? labels : Collections.emptyList();
-        this.impact = impact != null ? impact : getImpact(this.labels);
+        this.impact = impact != null ? impact : Collections.emptyList();
         this.region = region;
         this.license = license;
         this.ipsCode = ipsCode;
         this.development = development != null ? development : Collections.emptyList();
         this.testing = testing != null ? testing : Collections.emptyList();
-    }
-
-    private List<String> getImpact(List<String> labels) {
-        List<String> result = new ArrayList<>(2);
-
-        boolean acquirer = labels.contains("IMPACT_ON_ACQ");
-        boolean issuer = labels.contains("IMPACT_ON_ISS");
-        if (acquirer || issuer) {
-            result.add(acquirer ? (issuer ? "acquirer&issuer" : "acquirer") : "issuer");
-        }
-
-        boolean online = !labels.contains("NO_IMPACT_ON_ONLINE");
-        boolean clearing = !labels.contains("NO_IMPACT_ON_CLEARING");
-        if (online || clearing) {
-            result.add(online ? (clearing ? "online&clearing" : "online") : "clearing");
-        }
-
-        if (result.isEmpty()) {
-            result.add("no updates for all");
-        }
-        return result;
     }
 
     public String getKey() {

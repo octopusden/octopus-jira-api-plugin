@@ -706,6 +706,68 @@ public class IPSServiceTest {
                 .map(IssueBean::getKey).collect(Collectors.toList()));
     }
 
+    @Test
+    public void testGeneratePutsNoFixVersionIssuesInNotFoundBucketLast() throws Exception {
+        Issue ipsRelease = createIssue("IPS-1110");
+        Issue requirement = createIssue("REQ-121");
+        Issue devSubtask = createIssue("DEV-11", "IPS Req Dev");
+        Issue withVersion = createIssue("MU-20", "Summary", "Mandatory Update", "Open",
+                "High", "Done", Collections.emptyList(), Collections.emptyList(),
+                Collections.singletonList("v1.0"), Collections.singletonList("test-component"));
+        Issue withoutVersion = createIssue("MU-21", "Summary", "Mandatory Update", "Open",
+                "High", "Done", Collections.emptyList(), Collections.emptyList(),
+                Collections.emptyList(), Collections.singletonList("test-component"));
+        stubSearchReturns(ipsRelease);
+        stubInwardLinks(ipsRelease, Collections.singletonList(requirement));
+        stubSubtasks(requirement, Collections.singletonList(devSubtask));
+        stubInwardLinks(devSubtask, Arrays.asList(withoutVersion, withVersion));
+        stubIssueProject(withVersion);
+
+        List<DevComponent> components = service.generate(createRequest())
+                .getRequirements().get(0).getDevelopment().get(0).getComponents();
+        assertEquals(2, components.size());
+        assertEquals("test-component", components.get(0).getName());
+        assertEquals(Collections.singletonList("v1.0"), components.get(0).getFixVersions());
+        assertEquals("NOT_FOUND", components.get(1).getName());
+        assertEquals(Collections.emptyList(), components.get(1).getFixVersions());
+        assertEquals(1, components.get(1).getIssues().size());
+        assertEquals("MU-21", components.get(1).getIssues().get(0).getKey());
+        assertEquals(Collections.emptyList(), components.get(1).getIssues().get(0).getFixVersions());
+    }
+
+    // ==================== G2. Impact Derivation ====================
+
+    @Test
+    public void testDeriveImpactFromLabels() {
+        assertEquals(Arrays.asList("acquirer&issuer", "online&clearing"),
+                IPSService.deriveImpact(Arrays.asList("IMPACT_ON_ACQ", "IMPACT_ON_ISS")));
+        assertEquals(Arrays.asList("acquirer", "online&clearing"),
+                IPSService.deriveImpact(Collections.singletonList("IMPACT_ON_ACQ")));
+        assertEquals(Arrays.asList("issuer", "online&clearing"),
+                IPSService.deriveImpact(Collections.singletonList("IMPACT_ON_ISS")));
+        assertEquals(Collections.singletonList("clearing"),
+                IPSService.deriveImpact(Collections.singletonList("NO_IMPACT_ON_ONLINE")));
+        assertEquals(Collections.singletonList("online"),
+                IPSService.deriveImpact(Collections.singletonList("NO_IMPACT_ON_CLEARING")));
+        assertEquals(Collections.singletonList("online&clearing"),
+                IPSService.deriveImpact(Collections.emptyList()));
+        assertEquals(Collections.singletonList("no updates for all"),
+                IPSService.deriveImpact(Arrays.asList("NO_IMPACT_ON_ONLINE", "NO_IMPACT_ON_CLEARING")));
+    }
+
+    @Test
+    public void testGeneratePopulatesDerivedImpactForRequirement() throws Exception {
+        Issue ipsRelease = createIssue("IPS-1120");
+        Issue requirement = createIssue("REQ-140", "Req", "IPS Requirement", "Open",
+                "High", "Done", Collections.emptyList(),
+                Collections.singletonList("IMPACT_ON_ACQ"), Collections.emptyList(), Collections.emptyList());
+        stubSearchReturns(ipsRelease);
+        stubInwardLinks(ipsRelease, Collections.singletonList(requirement));
+
+        IPSRequirement result = service.generate(createRequest()).getRequirements().get(0);
+        assertEquals(Arrays.asList("acquirer", "online&clearing"), result.getImpact());
+    }
+
     // ==================== H. QA Subtasks ====================
 
     @Test
@@ -773,6 +835,63 @@ public class IPSServiceTest {
                 .getRequirements().get(0).getTesting().get(0).getCases();
         assertEquals(Arrays.asList("TD-2", "TD-10"),
                 cases.stream().map(IssueBean::getKey).collect(Collectors.toList()));
+    }
+
+    // ==================== Rejected filtering (requirement / subtasks) ====================
+
+    @Test
+    public void testGenerateExcludesRejectedRequirements() throws Exception {
+        Issue ipsRelease = createIssue("IPS-1130");
+        Issue rejected = createIssue("REQ-150", "Rejected req", "IPS Requirement", "Open",
+                "High", "Rejected", Collections.emptyList(), Collections.emptyList(),
+                Collections.emptyList(), Collections.emptyList());
+        Issue accepted = createIssue("REQ-151", "Accepted req", "IPS Requirement", "Open",
+                "High", "Done", Collections.emptyList(), Collections.emptyList(),
+                Collections.emptyList(), Collections.emptyList());
+        stubSearchReturns(ipsRelease);
+        stubInwardLinks(ipsRelease, Arrays.asList(rejected, accepted));
+
+        List<IPSRequirement> requirements = service.generate(createRequest()).getRequirements();
+        assertEquals(1, requirements.size());
+        assertEquals("REQ-151", requirements.get(0).getKey());
+    }
+
+    @Test
+    public void testGenerateExcludesRejectedDevSubtasks() throws Exception {
+        Issue ipsRelease = createIssue("IPS-1140");
+        Issue requirement = createIssue("REQ-152");
+        Issue rejectedDev = createIssue("DEV-12", "Rejected dev", "IPS Req Dev", "Open",
+                "High", "Rejected", Collections.emptyList(), Collections.emptyList(),
+                Collections.emptyList(), Collections.emptyList());
+        Issue acceptedDev = createIssue("DEV-13", "Accepted dev", "IPS Req Dev", "Open",
+                "High", "Done", Collections.emptyList(), Collections.emptyList(),
+                Collections.emptyList(), Collections.emptyList());
+        stubSearchReturns(ipsRelease);
+        stubInwardLinks(ipsRelease, Collections.singletonList(requirement));
+        stubSubtasks(requirement, Arrays.asList(rejectedDev, acceptedDev));
+
+        List<IPSReqDev> dev = service.generate(createRequest()).getRequirements().get(0).getDevelopment();
+        assertEquals(1, dev.size());
+        assertEquals("DEV-13", dev.get(0).getKey());
+    }
+
+    @Test
+    public void testGenerateExcludesRejectedQaSubtasks() throws Exception {
+        Issue ipsRelease = createIssue("IPS-1150");
+        Issue requirement = createIssue("REQ-153");
+        Issue rejectedQa = createIssue("QA-14", "Rejected qa", "IPS Req QA", "Open",
+                "High", "Rejected", Collections.emptyList(), Collections.emptyList(),
+                Collections.emptyList(), Collections.emptyList());
+        Issue acceptedQa = createIssue("QA-15", "Accepted qa", "IPS Req QA", "Open",
+                "High", "Done", Collections.emptyList(), Collections.emptyList(),
+                Collections.emptyList(), Collections.emptyList());
+        stubSearchReturns(ipsRelease);
+        stubInwardLinks(ipsRelease, Collections.singletonList(requirement));
+        stubSubtasks(requirement, Arrays.asList(rejectedQa, acceptedQa));
+
+        List<IPSReqQA> qa = service.generate(createRequest()).getRequirements().get(0).getTesting();
+        assertEquals(1, qa.size());
+        assertEquals("QA-15", qa.get(0).getKey());
     }
 
     // ==================== L. System Filtering ====================

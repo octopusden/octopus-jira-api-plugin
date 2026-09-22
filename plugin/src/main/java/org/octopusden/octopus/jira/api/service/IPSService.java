@@ -55,6 +55,10 @@ public class IPSService {
     private static final String FIELD_IPS_CODE = "IPS Code";
     private static final String FIELD_SYSTEM = "System";
     private static final String RESOLUTION_REJECTED = "Rejected";
+    private static final String LABEL_IMPACT_ON_ACQ = "IMPACT_ON_ACQ";
+    private static final String LABEL_IMPACT_ON_ISS = "IMPACT_ON_ISS";
+    private static final String LABEL_NO_IMPACT_ON_ONLINE = "NO_IMPACT_ON_ONLINE";
+    private static final String LABEL_NO_IMPACT_ON_CLEARING = "NO_IMPACT_ON_CLEARING";
 
     private final IssueLinkManager issueLinkManager;
     private final CustomFieldManager customFieldManager;
@@ -118,12 +122,16 @@ public class IPSService {
                             .filter(q -> q != null)
                             .collect(Collectors.toList());
 
+                    List<String> labels = requirement.getLabels().stream()
+                            .map(l -> l.getLabel())
+                            .collect(Collectors.toList());
+
                     return new IPSRequirement(
                             requirement.getKey(),
                             requirement.getSummary() != null ? requirement.getSummary() : "",
                             requirement.getStatus().getName(),
-                            requirement.getLabels().stream().map(l -> l.getLabel()).collect(Collectors.toList()),
-                            null,
+                            labels,
+                            deriveImpact(labels),
                             getCustomFieldStringValue(fieldIpsRequirementRegion, requirement),
                             getCustomFieldStringValue(fieldLicense, requirement),
                             getCustomFieldStringValue(fieldIpsCode, requirement),
@@ -131,7 +139,7 @@ public class IPSService {
                             testing
                     );
                 })
-                .sorted(Comparator.comparing(IPSRequirement::getName))
+                .sorted(Comparator.comparing(IPSRequirement::getName, String.CASE_INSENSITIVE_ORDER))
                 .collect(Collectors.toList());
 
         return new IPSResponse(
@@ -203,6 +211,7 @@ public class IPSService {
                     // Only fix versions that belong to this component
                     List<String> fixVersions = componentTriples.stream()
                             .map(t -> (String) t[1])
+                            .filter(v -> !NOT_FOUND.equals(v))
                             .distinct()
                             .collect(Collectors.toList());
 
@@ -228,7 +237,8 @@ public class IPSService {
 
                     return new DevComponent(compName, fixVersions, issues);
                 })
-                .sorted(Comparator.comparing(DevComponent::getName))
+                .sorted(Comparator.comparing((DevComponent c) -> NOT_FOUND.equals(c.getName()))
+                        .thenComparing(DevComponent::getName, String.CASE_INSENSITIVE_ORDER))
                 .collect(Collectors.toList());
 
         return new IPSReqDev(
@@ -341,6 +351,27 @@ public class IPSService {
             return ((List<?>) value).stream().map(Object::toString).collect(Collectors.toList());
         }
         return Collections.emptyList();
+    }
+
+    static List<String> deriveImpact(List<String> labels) {
+        List<String> result = new ArrayList<>(2);
+
+        boolean acquirer = labels.contains(LABEL_IMPACT_ON_ACQ);
+        boolean issuer = labels.contains(LABEL_IMPACT_ON_ISS);
+        if (acquirer || issuer) {
+            result.add(acquirer ? (issuer ? "acquirer&issuer" : "acquirer") : "issuer");
+        }
+
+        boolean online = !labels.contains(LABEL_NO_IMPACT_ON_ONLINE);
+        boolean clearing = !labels.contains(LABEL_NO_IMPACT_ON_CLEARING);
+        if (online || clearing) {
+            result.add(online ? (clearing ? "online&clearing" : "online") : "clearing");
+        }
+
+        if (result.isEmpty()) {
+            result.add("no updates for all");
+        }
+        return result;
     }
 
     private boolean isRejected(Issue issue) {
