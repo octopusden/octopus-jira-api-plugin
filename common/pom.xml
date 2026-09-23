@@ -10,6 +10,12 @@
         <relativePath>../pom.xml</relativePath>
     </parent>
 
+    <properties>
+        <!-- 21 SpotBugs findings, all EI_EXPOSE_REP/EI_EXPOSE_REP2 on model classes that hand out
+             their collections. A ratchet, not an endorsement: it stops the count growing. -->
+        <octopus.quality.maxViolations.spotbugs>21</octopus.quality.maxViolations.spotbugs>
+    </properties>
+
     <artifactId>octopus-jira-api-common</artifactId>
     <name>Octopus JIRA API Core</name>
     <description>DTOs for Octopus JIRA API</description>

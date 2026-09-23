@@ -61,7 +61,6 @@ public class IPSService {
     private static final String LABEL_NO_IMPACT_ON_CLEARING = "NO_IMPACT_ON_CLEARING";
 
     private final IssueLinkManager issueLinkManager;
-    private final CustomFieldManager customFieldManager;
     private final SearchService searchService;
     private final ApiSettingsProvider settingsProvider;
     private final ComponentRegistryService componentRegistryService;
@@ -81,7 +80,6 @@ public class IPSService {
             ComponentRegistryService componentRegistryService
     ) {
         this.issueLinkManager = issueLinkManager;
-        this.customFieldManager = customFieldManager;
         this.searchService = searchService;
         this.settingsProvider = settingsProvider;
         this.componentRegistryService = componentRegistryService;

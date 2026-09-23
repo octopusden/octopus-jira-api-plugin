@@ -10,6 +10,12 @@
         <relativePath>../pom.xml</relativePath>
     </parent>
 
+    <properties>
+        <octopus.quality.maxViolations.spotbugs>7</octopus.quality.maxViolations.spotbugs>
+        <!-- Measured 0.8209. -->
+        <octopus.coverage.minimumLine>0.80</octopus.coverage.minimumLine>
+    </properties>
+
     <artifactId>octopus-jira-api-client</artifactId>
     <name>Octopus JIRA API Client</name>
     <description>Feign REST client for Octopus JIRA API</description>
