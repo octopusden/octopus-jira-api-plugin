@@ -35,6 +35,7 @@ import java.util.Date;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 
 public class IPSService {
@@ -61,16 +62,12 @@ public class IPSService {
     private static final String LABEL_NO_IMPACT_ON_CLEARING = "NO_IMPACT_ON_CLEARING";
 
     private final IssueLinkManager issueLinkManager;
+    private final CustomFieldManager customFieldManager;
     private final SearchService searchService;
     private final ApiSettingsProvider settingsProvider;
     private final ComponentRegistryService componentRegistryService;
 
-    private final CustomField fieldProduct;
-    private final CustomField fieldIpsRelease;
-    private final CustomField fieldLicense;
-    private final CustomField fieldIpsRequirementRegion;
-    private final CustomField fieldIpsCode;
-    private final CustomField fieldSystem;
+    private final AtomicReference<ResolvedFields> resolvedFieldsRef = new AtomicReference<>();
 
     public IPSService(
             IssueLinkManager issueLinkManager,
@@ -80,19 +77,19 @@ public class IPSService {
             ComponentRegistryService componentRegistryService
     ) {
         this.issueLinkManager = issueLinkManager;
+        this.customFieldManager = customFieldManager;
         this.searchService = searchService;
         this.settingsProvider = settingsProvider;
         this.componentRegistryService = componentRegistryService;
 
-        this.fieldProduct = firstOrNull(customFieldManager.getCustomFieldObjectsByName(FIELD_PRODUCT));
-        this.fieldIpsRelease = firstOrNull(customFieldManager.getCustomFieldObjectsByName(FIELD_IPS_RELEASE));
-        this.fieldLicense = firstOrNull(customFieldManager.getCustomFieldObjectsByName(FIELD_LICENSE));
-        this.fieldIpsRequirementRegion = firstOrNull(customFieldManager.getCustomFieldObjectsByName(FIELD_IPS_REQUIREMENT_REGION));
-        this.fieldIpsCode = firstOrNull(customFieldManager.getCustomFieldObjectsByName(FIELD_IPS_CODE));
-        this.fieldSystem = firstOrNull(customFieldManager.getCustomFieldObjectsByName(FIELD_SYSTEM));
     }
 
     public IPSResponse generate(IPSRequest request) {
+        ResolvedFields f = resolvedFields();
+        CustomField fieldIpsRequirementRegion = f.ipsRequirementRegion;
+        CustomField fieldLicense = f.license;
+        CustomField fieldIpsCode = f.ipsCode;
+
         ApplicationUser serviceUser = getServiceUser();
         String ipsProject = settingsProvider.getString(ApiSetting.IPS_REPORTS_PROJECT);
 
@@ -152,7 +149,8 @@ public class IPSService {
 
     private IPSReqDev buildDevSubtask(Issue devSubtask, IPSRequest request, ApplicationUser serviceUser) {
         logger.debug("Processing IPS Req Dev {}", devSubtask.getKey());
-        List<String> system = getCustomFieldValueAsStringList(fieldSystem, devSubtask);
+        ResolvedFields f = resolvedFields();
+        List<String> system = getCustomFieldValueAsStringList(f.system, devSubtask);
         if (!emptyOrContains(system, request.getSystem())) return null;
 
         List<Issue> linkedIssues = getInwardImplementsIssues(devSubtask, serviceUser);
@@ -244,7 +242,7 @@ public class IPSService {
                 devSubtask.getSummary() != null ? devSubtask.getSummary() : "",
                 devSubtask.getStatus().getName(),
                 devSubtask.getLabels().stream().map(l -> l.getLabel()).collect(Collectors.toList()),
-                getCustomFieldStringValue(fieldLicense, devSubtask),
+                getCustomFieldStringValue(f.license, devSubtask),
                 system,
                 components
         );
@@ -252,7 +250,8 @@ public class IPSService {
 
     private IPSReqQA buildQASubtask(Issue qaSubtask, IPSRequest request, ApplicationUser serviceUser) {
         logger.debug("Processing IPS Req QA {}", qaSubtask.getKey());
-        List<String> system = getCustomFieldValueAsStringList(fieldSystem, qaSubtask);
+        ResolvedFields f = resolvedFields();
+        List<String> system = getCustomFieldValueAsStringList(f.system, qaSubtask);
         if (!emptyOrContains(system, request.getSystem())) return null;
 
         List<IssueBean> cases = getInwardImplementsIssues(qaSubtask, serviceUser).stream()
@@ -302,19 +301,20 @@ public class IPSService {
     }
 
     private Issue getIPSReleaseIssue(String ips, String release, Date startDate, String ipsProject, ApplicationUser user) {
-        if (fieldProduct == null) {
+        ResolvedFields f = resolvedFields();
+        if (f.product == null) {
             throw new IllegalStateException("Custom field '" + FIELD_PRODUCT + "' not found");
         }
         JqlClauseBuilder queryBuilder = JqlQueryBuilder.newBuilder().where()
                 .project(ipsProject).and()
                 .issueType(IPS_RELEASE_TYPE).and()
-                .customField(fieldProduct.getIdAsLong()).eq(ips);
+                .customField(f.product.getIdAsLong()).eq(ips);
 
         if (release != null) {
-            if (fieldIpsRelease == null) {
+            if (f.ipsRelease == null) {
                 throw new IllegalStateException("Custom field '" + FIELD_IPS_RELEASE + "' not found");
             }
-            queryBuilder.and().customField(fieldIpsRelease.getIdAsLong()).eq(release);
+            queryBuilder.and().customField(f.ipsRelease.getIdAsLong()).eq(release);
         } else if (startDate != null) {
             queryBuilder.and().createdAfter(startDate);
         }
@@ -412,6 +412,42 @@ public class IPSService {
     private static CustomField firstOrNull(Collection<CustomField> fields) {
         if (fields == null || fields.isEmpty()) return null;
         return fields.iterator().next();
+    }
+
+    /**
+     * Lazily resolves and caches the IPS custom fields on first use.
+     * <p>
+     * Resolution is deferred from the constructor to the first {@link #generate(IPSRequest)} call so the
+     * plugin can load at Jira startup even when the custom fields do not exist yet. The resolved fields
+     * are cached and reused for all subsequent calls (race-safe via {@link AtomicReference}); the field
+     * manager is not queried on every request.
+     */
+    private ResolvedFields resolvedFields() {
+        ResolvedFields rf = resolvedFieldsRef.get();
+        if (rf == null) {
+            ResolvedFields created = new ResolvedFields(customFieldManager);
+            resolvedFieldsRef.compareAndSet(null, created);
+            rf = resolvedFieldsRef.get();
+        }
+        return rf;
+    }
+
+    private static final class ResolvedFields {
+        final CustomField product;
+        final CustomField ipsRelease;
+        final CustomField license;
+        final CustomField ipsRequirementRegion;
+        final CustomField ipsCode;
+        final CustomField system;
+
+        ResolvedFields(CustomFieldManager cfm) {
+            product = firstOrNull(cfm.getCustomFieldObjectsByName(FIELD_PRODUCT));
+            ipsRelease = firstOrNull(cfm.getCustomFieldObjectsByName(FIELD_IPS_RELEASE));
+            license = firstOrNull(cfm.getCustomFieldObjectsByName(FIELD_LICENSE));
+            ipsRequirementRegion = firstOrNull(cfm.getCustomFieldObjectsByName(FIELD_IPS_REQUIREMENT_REGION));
+            ipsCode = firstOrNull(cfm.getCustomFieldObjectsByName(FIELD_IPS_CODE));
+            system = firstOrNull(cfm.getCustomFieldObjectsByName(FIELD_SYSTEM));
+        }
     }
 
     private JiraComponentVersion getJiraComponentVersion(Issue issue, Version version) {

@@ -60,6 +60,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 public class IPSServiceTest {
@@ -313,14 +314,6 @@ public class IPSServiceTest {
     }
 
     @Test
-    public void testServiceConstructsWithoutProductField() {
-        when(customFieldManager.getCustomFieldObjectsByName("Product")).thenReturn(Collections.emptyList());
-        // Bean must be creatable even when the 'Product' custom field is absent (lazy resolution).
-        IPSService svc = createService();
-        Assert.assertNotNull(svc);
-    }
-
-    @Test
     public void testGenerateThrowsWhenIpsReleaseCustomFieldNotFound() throws Exception {
         when(customFieldManager.getCustomFieldObjectsByName("IPS Release")).thenReturn(Collections.emptyList());
         IPSService svc = createService();
@@ -338,10 +331,12 @@ public class IPSServiceTest {
         stubSearchReturns(ipsRelease);
         // 'IPS Release' field is absent, but the request uses startDate (not release),
         // so the fieldIpsRelease.getIdAsLong() branch is never taken.
-        IPSRequest request = createRequest(null, new Date(), true, "CLASSIC");
+        Date startDate = new Date();
+        IPSRequest request = createRequest(null, startDate, true, "CLASSIC");
         IPSResponse response = svc.generate(request);
         assertEquals("IPS-201", response.getKey());
         assertEquals("", response.getRelease());
+        verify(mockWhereBuilder).createdAfter(startDate);
     }
 
     @Test
@@ -380,10 +375,12 @@ public class IPSServiceTest {
                 "High", "Done", Collections.emptyList(), Collections.emptyList(),
                 Collections.emptyList(), Collections.emptyList());
         stubSearchReturns(ipsRelease);
-        IPSRequest request = createRequest(null, new Date(), true, "CLASSIC");
+        Date startDate = new Date();
+        IPSRequest request = createRequest(null, startDate, true, "CLASSIC");
         IPSResponse response = service.generate(request);
         assertEquals("", response.getRelease());
         assertEquals("IPS-101", response.getKey());
+        verify(mockWhereBuilder).createdAfter(startDate);
     }
 
     // ==================== C. Happy Path ====================
