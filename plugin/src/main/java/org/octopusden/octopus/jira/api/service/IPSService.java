@@ -86,15 +86,12 @@ public class IPSService {
 
     public IPSResponse generate(IPSRequest request) {
         ResolvedFields f = resolvedFields();
-        CustomField fieldIpsRequirementRegion = f.ipsRequirementRegion;
-        CustomField fieldLicense = f.license;
-        CustomField fieldIpsCode = f.ipsCode;
 
         ApplicationUser serviceUser = getServiceUser();
         String ipsProject = settingsProvider.getString(ApiSetting.IPS_REPORTS_PROJECT);
 
         Issue ipsReleaseIssue = getIPSReleaseIssue(
-                request.getIps(), request.getRelease(), request.getStartDate(), ipsProject, serviceUser);
+                f, request.getIps(), request.getRelease(), request.getStartDate(), ipsProject, serviceUser);
         logger.info("Found IPS Release issue {} for {}:{}", new Object[]{ipsReleaseIssue.getKey(), request.getIps(), request.getRelease()});
 
         List<IPSRequirement> requirements = getInwardImplementsIssues(ipsReleaseIssue, serviceUser).stream()
@@ -106,14 +103,14 @@ public class IPSService {
                     List<IPSReqDev> development = requirement.getSubTaskObjects().stream()
                             .filter(i -> IPS_REQ_DEV_TYPE.equals(getIssueTypeName(i)))
                             .filter(i -> !isRejected(i))
-                            .map(devSubtask -> buildDevSubtask(devSubtask, request, serviceUser))
+                            .map(devSubtask -> buildDevSubtask(f, devSubtask, request, serviceUser))
                             .filter(d -> d != null)
                             .collect(Collectors.toList());
 
                     List<IPSReqQA> testing = requirement.getSubTaskObjects().stream()
                             .filter(i -> IPS_REQ_QA_TYPE.equals(getIssueTypeName(i)))
                             .filter(i -> !isRejected(i))
-                            .map(qaSubtask -> buildQASubtask(qaSubtask, request, serviceUser))
+                            .map(qaSubtask -> buildQASubtask(f, qaSubtask, request, serviceUser))
                             .filter(q -> q != null)
                             .collect(Collectors.toList());
 
@@ -127,9 +124,9 @@ public class IPSService {
                             requirement.getStatus().getName(),
                             labels,
                             deriveImpact(labels),
-                            getCustomFieldStringValue(fieldIpsRequirementRegion, requirement),
-                            getCustomFieldStringValue(fieldLicense, requirement),
-                            getCustomFieldStringValue(fieldIpsCode, requirement),
+                            getCustomFieldStringValue(f.ipsRequirementRegion, requirement),
+                            getCustomFieldStringValue(f.license, requirement),
+                            getCustomFieldStringValue(f.ipsCode, requirement),
                             development,
                             testing
                     );
@@ -147,9 +144,8 @@ public class IPSService {
         );
     }
 
-    private IPSReqDev buildDevSubtask(Issue devSubtask, IPSRequest request, ApplicationUser serviceUser) {
+    private IPSReqDev buildDevSubtask(ResolvedFields f, Issue devSubtask, IPSRequest request, ApplicationUser serviceUser) {
         logger.debug("Processing IPS Req Dev {}", devSubtask.getKey());
-        ResolvedFields f = resolvedFields();
         List<String> system = getCustomFieldValueAsStringList(f.system, devSubtask);
         if (!emptyOrContains(system, request.getSystem())) return null;
 
@@ -248,9 +244,8 @@ public class IPSService {
         );
     }
 
-    private IPSReqQA buildQASubtask(Issue qaSubtask, IPSRequest request, ApplicationUser serviceUser) {
+    private IPSReqQA buildQASubtask(ResolvedFields f, Issue qaSubtask, IPSRequest request, ApplicationUser serviceUser) {
         logger.debug("Processing IPS Req QA {}", qaSubtask.getKey());
-        ResolvedFields f = resolvedFields();
         List<String> system = getCustomFieldValueAsStringList(f.system, qaSubtask);
         if (!emptyOrContains(system, request.getSystem())) return null;
 
@@ -300,8 +295,7 @@ public class IPSService {
         return list.stream().anyMatch(s -> s.equalsIgnoreCase(value));
     }
 
-    private Issue getIPSReleaseIssue(String ips, String release, Date startDate, String ipsProject, ApplicationUser user) {
-        ResolvedFields f = resolvedFields();
+    private Issue getIPSReleaseIssue(ResolvedFields f, String ips, String release, Date startDate, String ipsProject, ApplicationUser user) {
         if (f.product == null) {
             throw new IllegalStateException("Custom field '" + FIELD_PRODUCT + "' not found");
         }
@@ -418,14 +412,20 @@ public class IPSService {
      * Lazily resolves and caches the IPS custom fields on first use.
      * <p>
      * Resolution is deferred from the constructor to the first {@link #generate(IPSRequest)} call so the
-     * plugin can load at Jira startup even when the custom fields do not exist yet. The resolved fields
-     * are cached and reused for all subsequent calls (race-safe via {@link AtomicReference}); the field
-     * manager is not queried on every request.
+     * plugin can load at Jira startup even when the custom fields do not exist yet. A complete snapshot
+     * (with both mandatory {@code Product} and {@code IPS Release} fields present) is cached and reused
+     * for all subsequent calls (race-safe via {@link AtomicReference}); the field manager is not queried
+     * on every request. A snapshot missing a mandatory field is returned for the current call but not
+     * cached, so the next call retries resolution and recovers once the field has been created.
      */
     private ResolvedFields resolvedFields() {
         ResolvedFields rf = resolvedFieldsRef.get();
         if (rf == null) {
             ResolvedFields created = new ResolvedFields(customFieldManager);
+            // Don't cache an incomplete snapshot; retry on the next call once the field exists.
+            if (created.product == null || created.ipsRelease == null) {
+                return created;
+            }
             resolvedFieldsRef.compareAndSet(null, created);
             rf = resolvedFieldsRef.get();
         }
