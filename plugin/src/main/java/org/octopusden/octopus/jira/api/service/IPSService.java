@@ -84,8 +84,8 @@ public class IPSService {
         this.settingsProvider = settingsProvider;
         this.componentRegistryService = componentRegistryService;
 
-        this.fieldProduct = firstOrThrow(customFieldManager.getCustomFieldObjectsByName(FIELD_PRODUCT), FIELD_PRODUCT);
-        this.fieldIpsRelease = firstOrThrow(customFieldManager.getCustomFieldObjectsByName(FIELD_IPS_RELEASE), FIELD_IPS_RELEASE);
+        this.fieldProduct = firstOrNull(customFieldManager.getCustomFieldObjectsByName(FIELD_PRODUCT));
+        this.fieldIpsRelease = firstOrNull(customFieldManager.getCustomFieldObjectsByName(FIELD_IPS_RELEASE));
         this.fieldLicense = firstOrNull(customFieldManager.getCustomFieldObjectsByName(FIELD_LICENSE));
         this.fieldIpsRequirementRegion = firstOrNull(customFieldManager.getCustomFieldObjectsByName(FIELD_IPS_REQUIREMENT_REGION));
         this.fieldIpsCode = firstOrNull(customFieldManager.getCustomFieldObjectsByName(FIELD_IPS_CODE));
@@ -302,12 +302,18 @@ public class IPSService {
     }
 
     private Issue getIPSReleaseIssue(String ips, String release, Date startDate, String ipsProject, ApplicationUser user) {
+        if (fieldProduct == null) {
+            throw new IllegalStateException("Custom field '" + FIELD_PRODUCT + "' not found");
+        }
         JqlClauseBuilder queryBuilder = JqlQueryBuilder.newBuilder().where()
                 .project(ipsProject).and()
                 .issueType(IPS_RELEASE_TYPE).and()
                 .customField(fieldProduct.getIdAsLong()).eq(ips);
 
         if (release != null) {
+            if (fieldIpsRelease == null) {
+                throw new IllegalStateException("Custom field '" + FIELD_IPS_RELEASE + "' not found");
+            }
             queryBuilder.and().customField(fieldIpsRelease.getIdAsLong()).eq(release);
         } else if (startDate != null) {
             queryBuilder.and().createdAfter(startDate);
@@ -401,13 +407,6 @@ public class IPSService {
 
     private static String getIssueTypeName(Issue issue) {
         return issue.getIssueType() != null ? issue.getIssueType().getName() : "";
-    }
-
-    private static CustomField firstOrThrow(Collection<CustomField> fields, String fieldName) {
-        if (fields == null || fields.isEmpty()) {
-            throw new IllegalStateException("Custom field '" + fieldName + "' not found");
-        }
-        return fields.iterator().next();
     }
 
     private static CustomField firstOrNull(Collection<CustomField> fields) {

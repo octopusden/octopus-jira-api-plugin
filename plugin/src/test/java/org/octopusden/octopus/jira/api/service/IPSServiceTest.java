@@ -307,15 +307,41 @@ public class IPSServiceTest {
     @Test
     public void testGenerateThrowsWhenProductCustomFieldNotFound() throws Exception {
         when(customFieldManager.getCustomFieldObjectsByName("Product")).thenReturn(Collections.emptyList());
-        IllegalStateException ex = Assert.assertThrows(IllegalStateException.class, this::createService);
+        IPSService svc = createService();
+        IllegalStateException ex = Assert.assertThrows(IllegalStateException.class, () -> svc.generate(createRequest()));
         assertTrue(ex.getMessage().contains("Product"));
+    }
+
+    @Test
+    public void testServiceConstructsWithoutProductField() {
+        when(customFieldManager.getCustomFieldObjectsByName("Product")).thenReturn(Collections.emptyList());
+        // Bean must be creatable even when the 'Product' custom field is absent (lazy resolution).
+        IPSService svc = createService();
+        Assert.assertNotNull(svc);
     }
 
     @Test
     public void testGenerateThrowsWhenIpsReleaseCustomFieldNotFound() throws Exception {
         when(customFieldManager.getCustomFieldObjectsByName("IPS Release")).thenReturn(Collections.emptyList());
-        IllegalStateException ex = Assert.assertThrows(IllegalStateException.class, this::createService);
+        IPSService svc = createService();
+        IllegalStateException ex = Assert.assertThrows(IllegalStateException.class, () -> svc.generate(createRequest()));
         assertTrue(ex.getMessage().contains("IPS Release"));
+    }
+
+    @Test
+    public void testGenerateUsesCreatedAfterWhenIpsReleaseFieldMissing() throws Exception {
+        when(customFieldManager.getCustomFieldObjectsByName("IPS Release")).thenReturn(Collections.emptyList());
+        IPSService svc = createService();
+        Issue ipsRelease = createIssue("IPS-201", "IPS Release", "IPS Release", "Open",
+                "High", "Done", Collections.emptyList(), Collections.emptyList(),
+                Collections.emptyList(), Collections.emptyList());
+        stubSearchReturns(ipsRelease);
+        // 'IPS Release' field is absent, but the request uses startDate (not release),
+        // so the fieldIpsRelease.getIdAsLong() branch is never taken.
+        IPSRequest request = createRequest(null, new Date(), true, "CLASSIC");
+        IPSResponse response = svc.generate(request);
+        assertEquals("IPS-201", response.getKey());
+        assertEquals("", response.getRelease());
     }
 
     @Test
