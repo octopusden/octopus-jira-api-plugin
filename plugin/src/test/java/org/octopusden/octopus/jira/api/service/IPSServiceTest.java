@@ -60,6 +60,9 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 public class IPSServiceTest {
@@ -307,15 +310,90 @@ public class IPSServiceTest {
     @Test
     public void testGenerateThrowsWhenProductCustomFieldNotFound() throws Exception {
         when(customFieldManager.getCustomFieldObjectsByName("Product")).thenReturn(Collections.emptyList());
-        IllegalStateException ex = Assert.assertThrows(IllegalStateException.class, this::createService);
+        IPSService svc = createService();
+        IllegalStateException ex = Assert.assertThrows(IllegalStateException.class, () -> svc.generate(createRequest()));
         assertTrue(ex.getMessage().contains("Product"));
     }
 
     @Test
     public void testGenerateThrowsWhenIpsReleaseCustomFieldNotFound() throws Exception {
         when(customFieldManager.getCustomFieldObjectsByName("IPS Release")).thenReturn(Collections.emptyList());
-        IllegalStateException ex = Assert.assertThrows(IllegalStateException.class, this::createService);
+        IPSService svc = createService();
+        IllegalStateException ex = Assert.assertThrows(IllegalStateException.class, () -> svc.generate(createRequest()));
         assertTrue(ex.getMessage().contains("IPS Release"));
+    }
+
+    @Test
+    public void testGenerateUsesCreatedAfterWhenIpsReleaseFieldMissing() throws Exception {
+        when(customFieldManager.getCustomFieldObjectsByName("IPS Release")).thenReturn(Collections.emptyList());
+        IPSService svc = createService();
+        Issue ipsRelease = createIssue("IPS-201", "IPS Release", "IPS Release", "Open",
+                "High", "Done", Collections.emptyList(), Collections.emptyList(),
+                Collections.emptyList(), Collections.emptyList());
+        stubSearchReturns(ipsRelease);
+        // 'IPS Release' field is absent, but the request uses startDate (not release),
+        // so the fieldIpsRelease.getIdAsLong() branch is never taken.
+        Date startDate = new Date();
+        IPSRequest request = createRequest(null, startDate, true, "CLASSIC");
+        IPSResponse response = svc.generate(request);
+        assertEquals("IPS-201", response.getKey());
+        assertEquals("", response.getRelease());
+        verify(mockWhereBuilder).createdAfter(startDate);
+    }
+
+    @Test
+    public void testGenerateRetriesWhenProductFieldCreatedAfterFirstCall() throws Exception {
+        // First call: 'Product' is absent -> throws and is not cached. Second call: 'Product' is present -> succeeds.
+        when(customFieldManager.getCustomFieldObjectsByName("Product"))
+                .thenReturn(Collections.emptyList())
+                .thenReturn(Collections.singletonList(mockProductField));
+        IPSService svc = createService();
+
+        IllegalStateException firstEx = Assert.assertThrows(IllegalStateException.class,
+                () -> svc.generate(createRequest()));
+        assertTrue(firstEx.getMessage().contains("Product"));
+
+        Issue ipsRelease = createIssue("IPS-202", "IPS Release", "IPS Release", "Open",
+                "High", "Done", Collections.emptyList(), Collections.emptyList(),
+                Collections.emptyList(), Collections.emptyList());
+        stubSearchReturns(ipsRelease);
+        IPSResponse response = svc.generate(createRequest());
+        assertEquals("IPS-202", response.getKey());
+    }
+
+    @Test
+    public void testConstructorMakesNoCustomFieldLookups() {
+        CustomFieldManager freshCfm = mock(CustomFieldManager.class);
+        IPSService svc = new IPSService(issueLinkManager, freshCfm, searchService, settingsProvider, componentsRegistryService);
+        Assert.assertNotNull(svc);
+        verify(freshCfm, never()).getCustomFieldObjectsByName(anyString());
+    }
+
+    @Test
+    public void testGenerateResolvesCustomFieldsOnceAcrossCalls() throws Exception {
+        IPSService svc = createService();
+        Mockito.clearInvocations(customFieldManager);
+
+        Issue ipsRelease = createIssue("IPS-203", "IPS Release", "IPS Release", "Open",
+                "High", "Done", Collections.emptyList(), Collections.emptyList(),
+                Collections.emptyList(), Collections.emptyList());
+        stubSearchReturns(ipsRelease);
+
+        svc.generate(createRequest());
+        svc.generate(createRequest());
+
+        // First call resolves and caches the snapshot; second call reuses it (no further lookups).
+        verify(customFieldManager, times(1)).getCustomFieldObjectsByName("Product");
+    }
+
+    @Test
+    public void testGenerateRequiresProductOnSincePath() throws Exception {
+        when(customFieldManager.getCustomFieldObjectsByName("Product")).thenReturn(Collections.emptyList());
+        IPSService svc = createService();
+        Date startDate = new Date();
+        IPSRequest request = createRequest(null, startDate, true, "CLASSIC");
+        IllegalStateException ex = Assert.assertThrows(IllegalStateException.class, () -> svc.generate(request));
+        assertTrue(ex.getMessage().contains("Product"));
     }
 
     @Test
@@ -354,10 +432,12 @@ public class IPSServiceTest {
                 "High", "Done", Collections.emptyList(), Collections.emptyList(),
                 Collections.emptyList(), Collections.emptyList());
         stubSearchReturns(ipsRelease);
-        IPSRequest request = createRequest(null, new Date(), true, "CLASSIC");
+        Date startDate = new Date();
+        IPSRequest request = createRequest(null, startDate, true, "CLASSIC");
         IPSResponse response = service.generate(request);
         assertEquals("", response.getRelease());
         assertEquals("IPS-101", response.getKey());
+        verify(mockWhereBuilder).createdAfter(startDate);
     }
 
     // ==================== C. Happy Path ====================
