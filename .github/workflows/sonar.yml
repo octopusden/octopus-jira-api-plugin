@@ -1,8 +1,10 @@
 name: Sonar
 
+# Pull requests are analysed by the pull_request run; push covers main only,
+# so a PR push does not run Sonar twice.
 on:
   push:
-    branches: [ '**' ]
+    branches: [ main ]
   pull_request:
     types: [opened, synchronize, reopened]
   workflow_dispatch:
